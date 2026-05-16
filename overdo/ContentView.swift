@@ -65,22 +65,33 @@ struct ContentView: View {
             switch sheet {
             case .create:
                 TaskSheet(mode: .create) { text, dueDate in
-                    modelContext.insert(TodoItem(text: text, dueDate: dueDate))
+                    let task = TodoItem(text: text, dueDate: dueDate)
+                    modelContext.insert(task)
+                    TaskNotifications.schedule(for: task)
                 }
             case .edit(let task):
                 TaskSheet(mode: .edit(task)) { text, dueDate in
                     task.text = text
                     task.dueDate = dueDate
+                    TaskNotifications.schedule(for: task)
                 } onComplete: {
                     task.isCompleted = true
+                    TaskNotifications.cancel(for: task)
                 }
             case .bulkEdit(let bulkTasks):
                 BulkEditSheet(tasks: bulkTasks) { newDueDate in
                     for task in bulkTasks {
                         task.dueDate = newDueDate
+                        TaskNotifications.schedule(for: task)
                     }
                     exitSelectionMode()
                 }
+            }
+        }
+        .task {
+            // Reconcile reminders on launch (e.g. for tasks created before the feature).
+            for task in tasks {
+                TaskNotifications.schedule(for: task)
             }
         }
         .onChange(of: scenePhase) { _, _ in
@@ -188,6 +199,7 @@ struct ContentView: View {
                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
                     Button {
                         task.isCompleted = true
+                        TaskNotifications.cancel(for: task)
                     } label: {
                         Label("Complete", systemImage: "checkmark")
                     }
@@ -195,6 +207,7 @@ struct ContentView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
+                        TaskNotifications.cancel(for: task)
                         modelContext.delete(task)
                     } label: {
                         Label("Delete", systemImage: "trash")

@@ -49,6 +49,7 @@ struct BulkEditSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .presentationBackground(Color(.systemGroupedBackground))
     }
 }
 

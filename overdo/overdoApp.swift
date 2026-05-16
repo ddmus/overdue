@@ -12,9 +12,13 @@ import UserNotifications
 @main
 struct overdoApp: App {
 
+    private let notificationDelegate = NotificationDelegate()
+
     init() {
-        // Badge authorization is required before the app icon badge will show.
-        UNUserNotificationCenter.current().requestAuthorization(options: [.badge]) { _, _ in }
+        // Allows due reminders to show while the app is in the foreground.
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+        // Requests alert + sound + badge permission for due reminders.
+        TaskNotifications.requestAuthorization()
     }
 
     var body: some Scene {

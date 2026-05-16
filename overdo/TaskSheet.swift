@@ -105,8 +105,9 @@ struct TaskSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .presentationBackground(Color(.systemGroupedBackground))
         .onAppear {
             // Auto-focus the text field only when creating a new task.
             if !isEditing { isTextFieldFocused = true }
