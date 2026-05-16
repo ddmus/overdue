@@ -6,11 +6,14 @@
 //
 
 import Foundation
+import SwiftData
 
-/// A single task. Named `TodoItem` to avoid colliding with Swift Concurrency's `Task`.
-struct TodoItem: Identifiable, Hashable {
+/// A single task, persisted with SwiftData.
+/// Named `TodoItem` to avoid colliding with Swift Concurrency's `Task`.
+@Model
+final class TodoItem {
 
-    let id: UUID
+    @Attribute(.unique) var id: UUID
 
     /// The actual description of what needs to be done.
     var text: String

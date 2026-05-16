@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import UserNotifications
 
 @main
@@ -20,5 +21,6 @@ struct overdoApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: TodoItem.self)
     }
 }
