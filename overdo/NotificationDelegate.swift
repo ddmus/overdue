@@ -27,7 +27,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         [.banner, .sound, .list]
     }
 
-    /// Applies a postpone action picked from the notification.
+    /// Applies an action picked from the notification's context menu.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
@@ -38,21 +38,48 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         else {
             return
         }
-        postpone(taskID: taskID, by: action.interval)
+
+        switch action {
+        case .markDone:
+            complete(taskID: taskID)
+        case .postpone15m, .postpone1h, .postpone1d:
+            if let interval = action.postponeInterval {
+                postpone(taskID: taskID, by: interval)
+            }
+        }
+    }
+
+    private func complete(taskID: UUID) {
+        let context = modelContainer.mainContext
+        guard let task = task(with: taskID, in: context) else { return }
+
+        task.isCompleted = true
+        try? context.save()
+
+        // Remove the fired notification, then resync so badge counts stay correct.
+        TaskNotifications.cancel(taskID: taskID)
+        resyncReminders(context: context)
     }
 
     private func postpone(taskID: UUID, by interval: TimeInterval) {
         let context = modelContainer.mainContext
-        let descriptor = FetchDescriptor<TodoItem>(
-            predicate: #Predicate<TodoItem> { $0.id == taskID }
-        )
-
-        guard let task = try? context.fetch(descriptor).first else { return }
+        guard let task = task(with: taskID, in: context) else { return }
 
         task.dueDate = .now.addingTimeInterval(interval)
         try? context.save()
 
-        // Resync all reminders so badge counts stay correct.
+        resyncReminders(context: context)
+    }
+
+    private func task(with id: UUID, in context: ModelContext) -> TodoItem? {
+        let descriptor = FetchDescriptor<TodoItem>(
+            predicate: #Predicate<TodoItem> { $0.id == id }
+        )
+        return try? context.fetch(descriptor).first
+    }
+
+    /// Reschedules all reminders so the badge counts stay correct.
+    private func resyncReminders(context: ModelContext) {
         let allTasks = (try? context.fetch(FetchDescriptor<TodoItem>())) ?? []
         TaskNotifications.sync(tasks: allTasks)
     }

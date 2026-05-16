@@ -22,26 +22,36 @@ enum TaskNotifications {
     /// iOS only keeps the 64 soonest pending local notifications per app.
     private static let pendingLimit = 64
 
-    /// Actions offered in the notification's context menu.
+    /// Actions offered in the notification's context menu, in display order.
     enum Action: String, CaseIterable {
+        case markDone = "MARK_DONE"
         case postpone15m = "POSTPONE_15M"
         case postpone1h = "POSTPONE_1H"
         case postpone1d = "POSTPONE_1D"
 
-        /// How far into the future the task is pushed.
-        var interval: TimeInterval {
-            switch self {
-            case .postpone15m: 15 * 60
-            case .postpone1h: 60 * 60
-            case .postpone1d: 24 * 60 * 60
-            }
-        }
-
         var title: String {
             switch self {
+            case .markDone: "Mark done"
             case .postpone15m: "Postpone 15 min"
             case .postpone1h: "Postpone 1 hour"
             case .postpone1d: "Postpone 1 day"
+            }
+        }
+
+        var iconName: String {
+            switch self {
+            case .markDone: "checkmark"
+            case .postpone15m, .postpone1h, .postpone1d: "clock"
+            }
+        }
+
+        /// How far into the future the task is pushed; `nil` for non-postpone actions.
+        var postponeInterval: TimeInterval? {
+            switch self {
+            case .markDone: nil
+            case .postpone15m: 15 * 60
+            case .postpone1h: 60 * 60
+            case .postpone1d: 24 * 60 * 60
             }
         }
     }
@@ -58,7 +68,7 @@ enum TaskNotifications {
                 identifier: action.rawValue,
                 title: action.title,
                 options: [],
-                icon: UNNotificationActionIcon(systemImageName: "clock")
+                icon: UNNotificationActionIcon(systemImageName: action.iconName)
             )
         }
         let category = UNNotificationCategory(
