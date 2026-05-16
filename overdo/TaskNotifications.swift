@@ -22,12 +22,29 @@ enum TaskNotifications {
     /// iOS only keeps the 64 soonest pending local notifications per app.
     private static let pendingLimit = 64
 
-    /// Actions offered in the notification's context menu, in display order.
+    /// Actions offered in the notification and in-app context menus, in display order.
     enum Action: String, CaseIterable {
         case markDone = "MARK_DONE"
         case postpone15m = "POSTPONE_15M"
         case postpone1h = "POSTPONE_1H"
         case postpone1d = "POSTPONE_1D"
+        case at9 = "AT_09_00"
+        case at12 = "AT_12_00"
+        case at18 = "AT_18_00"
+        case at20 = "AT_20_00"
+
+        /// Menu grouping; the in-app context menu shows a divider between groups.
+        enum Group: CaseIterable {
+            case complete, postpone, schedule
+        }
+
+        var group: Group {
+            switch self {
+            case .markDone: .complete
+            case .postpone15m, .postpone1h, .postpone1d: .postpone
+            case .at9, .at12, .at18, .at20: .schedule
+            }
+        }
 
         var title: String {
             switch self {
@@ -35,6 +52,10 @@ enum TaskNotifications {
             case .postpone15m: "Postpone 15 min"
             case .postpone1h: "Postpone 1 hour"
             case .postpone1d: "Postpone 1 day"
+            case .at9: "9:00"
+            case .at12: "12:00"
+            case .at18: "18:00"
+            case .at20: "20:00"
             }
         }
 
@@ -42,17 +63,41 @@ enum TaskNotifications {
             switch self {
             case .markDone: "checkmark"
             case .postpone15m, .postpone1h, .postpone1d: "clock"
+            case .at9, .at12, .at18, .at20: "alarm"
             }
         }
 
-        /// How far into the future the task is pushed; `nil` for non-postpone actions.
-        var postponeInterval: TimeInterval? {
+        /// The new due date this action produces, or `nil` for `markDone`.
+        func resolvedDueDate(from now: Date = .now) -> Date? {
             switch self {
-            case .markDone: nil
-            case .postpone15m: 15 * 60
-            case .postpone1h: 60 * 60
-            case .postpone1d: 24 * 60 * 60
+            case .markDone:
+                return nil
+            case .postpone15m:
+                return now.addingTimeInterval(15 * 60)
+            case .postpone1h:
+                return now.addingTimeInterval(60 * 60)
+            case .postpone1d:
+                return now.addingTimeInterval(24 * 60 * 60)
+            case .at9:
+                return Self.nextOccurrence(ofHour: 9, from: now)
+            case .at12:
+                return Self.nextOccurrence(ofHour: 12, from: now)
+            case .at18:
+                return Self.nextOccurrence(ofHour: 18, from: now)
+            case .at20:
+                return Self.nextOccurrence(ofHour: 20, from: now)
             }
+        }
+
+        /// The next time the clock reads `hour:00` — today if still ahead, else tomorrow.
+        private static func nextOccurrence(ofHour hour: Int, from now: Date) -> Date {
+            let calendar = Calendar.current
+            if let todayAtHour = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: now),
+               todayAtHour > now {
+                return todayAtHour
+            }
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+            return calendar.date(bySettingHour: hour, minute: 0, second: 0, of: tomorrow) ?? tomorrow
         }
     }
 

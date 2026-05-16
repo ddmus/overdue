@@ -42,9 +42,9 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         switch action {
         case .markDone:
             complete(taskID: taskID)
-        case .postpone15m, .postpone1h, .postpone1d:
-            if let interval = action.postponeInterval {
-                postpone(taskID: taskID, by: interval)
+        case .postpone15m, .postpone1h, .postpone1d, .at9, .at12, .at18, .at20:
+            if let newDueDate = action.resolvedDueDate() {
+                reschedule(taskID: taskID, to: newDueDate)
             }
         }
     }
@@ -61,11 +61,11 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         resyncReminders(context: context)
     }
 
-    private func postpone(taskID: UUID, by interval: TimeInterval) {
+    private func reschedule(taskID: UUID, to newDueDate: Date) {
         let context = modelContainer.mainContext
         guard let task = task(with: taskID, in: context) else { return }
 
-        task.dueDate = .now.addingTimeInterval(interval)
+        task.dueDate = newDueDate
         try? context.save()
 
         resyncReminders(context: context)

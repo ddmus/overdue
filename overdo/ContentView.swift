@@ -198,15 +198,14 @@ struct ContentView: View {
             }
             .listRowBackground(isSelected ? Color.accentColor.opacity(0.15) : nil)
 
-        // Swipe actions only outside selection mode.
+        // Swipe actions and context menu only outside selection mode.
         if isSelecting {
             row
         } else {
             row
                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
                     Button {
-                        task.isCompleted = true
-                        TaskNotifications.cancel(taskID: task.id)
+                        markDone(task)
                     } label: {
                         Label("Complete", systemImage: "checkmark")
                     }
@@ -221,7 +220,43 @@ struct ContentView: View {
                         Label("Delete", systemImage: "trash")
                     }
                 }
+                .contextMenu {
+                    ForEach(TaskNotifications.Action.Group.allCases, id: \.self) { group in
+                        Section {
+                            ForEach(actions(in: group), id: \.self) { action in
+                                Button {
+                                    apply(action, to: task)
+                                } label: {
+                                    Label(action.title, systemImage: action.iconName)
+                                }
+                            }
+                        }
+                    }
+                }
         }
+    }
+
+    // MARK: - Task actions
+
+    private func actions(in group: TaskNotifications.Action.Group) -> [TaskNotifications.Action] {
+        TaskNotifications.Action.allCases.filter { $0.group == group }
+    }
+
+    /// Applies a context-menu / notification action to a task.
+    private func apply(_ action: TaskNotifications.Action, to task: TodoItem) {
+        switch action {
+        case .markDone:
+            markDone(task)
+        case .postpone15m, .postpone1h, .postpone1d, .at9, .at12, .at18, .at20:
+            if let newDueDate = action.resolvedDueDate() {
+                task.dueDate = newDueDate
+            }
+        }
+    }
+
+    private func markDone(_ task: TodoItem) {
+        task.isCompleted = true
+        TaskNotifications.cancel(taskID: task.id)
     }
 
     // MARK: - Selection
