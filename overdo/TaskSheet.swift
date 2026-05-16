@@ -57,16 +57,23 @@ struct TaskSheet: View {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Performs the default action — Add (create) or Save (edit) — then dismisses.
+    private func submit() {
+        guard !trimmedText.isEmpty else { return }
+        onSubmit(trimmedText, dueDate)
+        dismiss()
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("What needs to be done?", text: $text, axis: .vertical)
-                        .lineLimit(1...4)
+                    TextField("What needs to be done?", text: $text)
                         .focused($isTextFieldFocused)
                         .submitLabel(.done)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.sentences)
+                        .onSubmit { submit() }
                 }
 
                 Section("Due") {
@@ -100,8 +107,7 @@ struct TaskSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isEditing ? "Save" : "Add") {
-                        onSubmit(trimmedText, dueDate)
-                        dismiss()
+                        submit()
                     }
                     .disabled(trimmedText.isEmpty)
                 }
