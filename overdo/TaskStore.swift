@@ -7,12 +7,15 @@
 
 import Foundation
 import Observation
+import UserNotifications
 
 /// Holds the list of tasks, kept sorted by due date (soonest first).
 @Observable
 final class TaskStore {
 
-    private(set) var tasks: [TodoItem] = []
+    private(set) var tasks: [TodoItem] = [] {
+        didSet { refreshBadge() }
+    }
 
     /// Tasks shown in the UI: everything that has not been completed.
     var activeTasks: [TodoItem] {
@@ -44,5 +47,10 @@ final class TaskStore {
 
     private func sort() {
         tasks.sort { $0.dueDate < $1.dueDate }
+    }
+
+    /// Keeps the app icon badge in sync with the number of unfinished tasks.
+    private func refreshBadge() {
+        UNUserNotificationCenter.current().setBadgeCount(activeTasks.count)
     }
 }
