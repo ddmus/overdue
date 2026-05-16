@@ -65,38 +65,45 @@ struct ContentView: View {
             switch sheet {
             case .create:
                 TaskSheet(mode: .create) { text, dueDate in
-                    let task = TodoItem(text: text, dueDate: dueDate)
-                    modelContext.insert(task)
-                    TaskNotifications.schedule(for: task)
+                    modelContext.insert(TodoItem(text: text, dueDate: dueDate))
                 }
             case .edit(let task):
                 TaskSheet(mode: .edit(task)) { text, dueDate in
                     task.text = text
                     task.dueDate = dueDate
-                    TaskNotifications.schedule(for: task)
                 } onComplete: {
                     task.isCompleted = true
-                    TaskNotifications.cancel(for: task)
+                    TaskNotifications.cancel(taskID: task.id)
                 }
             case .bulkEdit(let bulkTasks):
                 BulkEditSheet(tasks: bulkTasks) { newDueDate in
                     for task in bulkTasks {
                         task.dueDate = newDueDate
-                        TaskNotifications.schedule(for: task)
                     }
                     exitSelectionMode()
                 }
             }
         }
         .task {
-            // Reconcile reminders on launch (e.g. for tasks created before the feature).
-            for task in tasks {
-                TaskNotifications.schedule(for: task)
-            }
+            // Schedule reminders on launch.
+            TaskNotifications.sync(tasks: tasks)
+        }
+        .onChange(of: notificationSnapshot) {
+            // Any add / edit / complete / delete reschedules all reminders so the
+            // badge counts baked into each notification stay correct.
+            TaskNotifications.sync(tasks: tasks)
         }
         .onChange(of: scenePhase) { _, _ in
             // Catch tasks that crossed their due date while the app was away.
             Badge.set(tasks.filter { $0.isOverdue() }.count)
+        }
+    }
+
+    /// Changes whenever a task's identity, due date, text or membership changes —
+    /// the trigger for rescheduling reminders.
+    private var notificationSnapshot: [String] {
+        tasks.map { task in
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)"
         }
     }
 
@@ -199,7 +206,7 @@ struct ContentView: View {
                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
                     Button {
                         task.isCompleted = true
-                        TaskNotifications.cancel(for: task)
+                        TaskNotifications.cancel(taskID: task.id)
                     } label: {
                         Label("Complete", systemImage: "checkmark")
                     }
@@ -207,8 +214,9 @@ struct ContentView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
-                        TaskNotifications.cancel(for: task)
+                        let id = task.id
                         modelContext.delete(task)
+                        TaskNotifications.cancel(taskID: id)
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }

@@ -12,19 +12,29 @@ import UserNotifications
 @main
 struct overdoApp: App {
 
-    private let notificationDelegate = NotificationDelegate()
+    private let modelContainer: ModelContainer
+    private let notificationDelegate: NotificationDelegate
 
     init() {
-        // Allows due reminders to show while the app is in the foreground.
+        do {
+            modelContainer = try ModelContainer(for: TodoItem.self)
+        } catch {
+            fatalError("Failed to create the model container: \(error)")
+        }
+
+        // The delegate needs the container so it can apply postpone actions.
+        notificationDelegate = NotificationDelegate(modelContainer: modelContainer)
         UNUserNotificationCenter.current().delegate = notificationDelegate
-        // Requests alert + sound + badge permission for due reminders.
+
+        // Requests alert + sound + badge permission and registers postpone actions.
         TaskNotifications.requestAuthorization()
+        TaskNotifications.registerCategories()
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: TodoItem.self)
+        .modelContainer(modelContainer)
     }
 }
