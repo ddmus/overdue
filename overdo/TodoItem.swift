@@ -39,6 +39,40 @@ extension TodoItem {
         dueDate < reference
     }
 
+    /// The due time only, e.g. "20:00".
+    func dueTimeText() -> String {
+        dueDate.formatted(.dateTime.hour().minute())
+    }
+
+    /// The due time prefixed with its day, e.g. "Tomorrow 20:00" or "Friday 15:00".
+    /// More than a week away it uses the date instead, e.g. "15-June, 08:00".
+    func dueDayTimeText(at now: Date = .now) -> String {
+        let calendar = Calendar.current
+        let time = dueTimeText()
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: now),
+            to: calendar.startOfDay(for: dueDate)
+        ).day ?? 0
+
+        switch days {
+        case 1:
+            return "Tomorrow \(time)"
+        case 2...6:
+            return "\(dueDate.formatted(.dateTime.weekday(.wide))) \(time)"
+        case 7...:
+            return "\(Self.dayMonthFormatter.string(from: dueDate)), \(time)"
+        default:
+            return time
+        }
+    }
+
+    private static let dayMonthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d-MMMM"
+        return formatter
+    }()
+
     /// Calculated UI field, e.g. "in 18 min" for a future task or "18 min ago" for a past one.
     func relativeText(at reference: Date = .now) -> String {
         let interval = dueDate.timeIntervalSince(reference)

@@ -153,6 +153,8 @@ struct ContentView: View {
     private func taskList(now: Date) -> some View {
         let overdue = tasks.filter { $0.isOverdue(at: now) }
         let upcoming = tasks.filter { !$0.isOverdue(at: now) }
+        let today = upcoming.filter { Calendar.current.isDate($0.dueDate, inSameDayAs: now) }
+        let later = upcoming.filter { !Calendar.current.isDate($0.dueDate, inSameDayAs: now) }
 
         Group {
             if tasks.isEmpty {
@@ -171,9 +173,14 @@ struct ContentView: View {
                                 .foregroundStyle(.red)
                         }
                     }
-                    if !upcoming.isEmpty {
+                    if !today.isEmpty {
+                        Section("Today") {
+                            ForEach(today) { taskRow($0, now: now) }
+                        }
+                    }
+                    if !later.isEmpty {
                         Section("Upcoming") {
-                            ForEach(upcoming) { taskRow($0, now: now) }
+                            ForEach(later) { taskRow($0, now: now, showsDueDay: true) }
                         }
                     }
                 }
@@ -188,10 +195,10 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func taskRow(_ task: TodoItem, now: Date) -> some View {
+    private func taskRow(_ task: TodoItem, now: Date, showsDueDay: Bool = false) -> some View {
         let isSelected = isSelecting && selectedTaskIDs.contains(task.id)
 
-        let row = TaskRow(task: task, now: now)
+        let row = TaskRow(task: task, now: now, showsDueDay: showsDueDay)
             .contentShape(Rectangle())
             .onTapGesture {
                 if isSelecting {

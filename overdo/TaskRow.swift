@@ -13,6 +13,9 @@ struct TaskRow: View {
     let task: TodoItem
     /// The current time, passed in so the relative label stays live.
     let now: Date
+    /// When `true`, the due label includes the day (e.g. "Friday 15:00") — used in
+    /// the Upcoming section where tasks fall on later days.
+    var showsDueDay: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -27,7 +30,7 @@ struct TaskRow: View {
 
             Spacer(minLength: 0)
 
-            Text(task.dueDate, format: .dateTime.hour().minute())
+            Text(showsDueDay ? task.dueDayTimeText(at: now) : task.dueTimeText())
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
