@@ -34,7 +34,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     ) async {
         guard
             let action = TaskNotifications.Action(rawValue: response.actionIdentifier),
-            let taskID = UUID(uuidString: response.notification.request.identifier)
+            let taskID = TaskNotifications.taskID(fromIdentifier: response.notification.request.identifier)
         else {
             return
         }

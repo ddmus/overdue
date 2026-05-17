@@ -94,8 +94,10 @@ struct ContentView: View {
             TaskNotifications.sync(tasks: tasks)
         }
         .onChange(of: scenePhase) { _, _ in
-            // Catch tasks that crossed their due date while the app was away.
+            // Catch tasks that crossed their due date while the app was away:
+            // refresh the badge and start their repeating reminders.
             Badge.set(tasks.filter { $0.isOverdue() }.count)
+            TaskNotifications.sync(tasks: tasks)
         }
     }
 
@@ -177,9 +179,11 @@ struct ContentView: View {
                 }
             }
         }
-        // Keep the badge current as tasks cross their due date while in use.
+        // When a task crosses its due date while the app is open, refresh the badge
+        // and reschedule reminders so the overdue task starts its repeating reminder.
         .onChange(of: overdue.count) {
             Badge.set(overdue.count)
+            TaskNotifications.sync(tasks: tasks)
         }
     }
 
