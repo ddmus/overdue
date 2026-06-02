@@ -7,11 +7,14 @@
 
 import SwiftUI
 
-/// A reusable "Due" form section: a date & time picker plus quick-set buttons.
-/// Shared by the single-task sheet and the bulk-edit sheet.
+/// A reusable "Due" form section: a date & time picker plus controls for adjusting
+/// the selected due date. Shared by the single-task sheet and the bulk-edit sheet.
 struct DueDateSection: View {
 
     @Binding var dueDate: Date
+
+    /// On-the-hour presets, applied to the currently selected day.
+    private let hourOptions = [7, 9, 12, 18, 20]
 
     var body: some View {
         Section("Due") {
@@ -21,40 +24,45 @@ struct DueDateSection: View {
                 displayedComponents: [.date, .hourAndMinute]
             )
 
-            quickButtons
+            // Set the time on the currently selected day.
+            FlowLayout(spacing: 8) {
+                ForEach(hourOptions, id: \.self) { hour in
+                    Button(hourLabel(hour)) {
+                        dueDate = dateOnSelectedDay(hour: hour)
+                    }
+                    .font(.footnote)
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding(.vertical, 4)
+
+            // Nudge the selected date/time up or down.
+            FlowLayout(spacing: 8) {
+                adjustButton("-1 d", .day, -1)
+                adjustButton("-1 h", .hour, -1)
+                adjustButton("-10 min", .minute, -10)
+                adjustButton("+10 min", .minute, 10)
+                adjustButton("+1 h", .hour, 1)
+                adjustButton("+1 d", .day, 1)
+            }
+            .padding(.vertical, 4)
         }
     }
 
-    /// Quick controls for setting the due time relative to now.
-    private var quickButtons: some View {
-        HStack(spacing: 8) {
-            quickButton("15 min", offset: 15 * 60)
-            quickButton("1 hour", offset: 60 * 60)
-            quickButton("3 hours", offset: 3 * 60 * 60)
-            quickButton("Tomorrow", date: tomorrowMorning)
+    private func adjustButton(_ title: String, _ component: Calendar.Component, _ value: Int) -> some View {
+        Button(title) {
+            dueDate = Calendar.current.date(byAdding: component, value: value, to: dueDate) ?? dueDate
         }
-        .frame(maxWidth: .infinity)
+        .font(.footnote)
+        .buttonStyle(.bordered)
     }
 
-    private func quickButton(_ title: String, offset: TimeInterval) -> some View {
-        quickButton(title, date: .now.addingTimeInterval(offset))
+    /// `hour:00` on the day currently selected in the picker.
+    private func dateOnSelectedDay(hour: Int) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: dueDate) ?? dueDate
     }
 
-    private func quickButton(_ title: String, date: Date) -> some View {
-        Button(title) { dueDate = date }
-            .font(.footnote)
-            .buttonStyle(.bordered)
-    }
-
-    /// 9:00 AM on the next day.
-    private var tomorrowMorning: Date {
-        let calendar = Calendar.current
-        let nextDay = calendar.date(byAdding: .day, value: 1, to: .now) ?? .now
-        return calendar.date(
-            bySettingHour: 9,
-            minute: 0,
-            second: 0,
-            of: nextDay
-        ) ?? nextDay
+    private func hourLabel(_ hour: Int) -> String {
+        dateOnSelectedDay(hour: hour).formatted(.dateTime.hour().minute())
     }
 }

@@ -58,9 +58,10 @@ struct TaskSheet: View {
     }
 
     /// Performs the default action — Add (create) or Save (edit) — then dismisses.
-    private func submit() {
+    /// An optional `date` overrides the picked due date (used by Quick save).
+    private func submit(date: Date? = nil) {
         guard !trimmedText.isEmpty else { return }
-        onSubmit(trimmedText, dueDate)
+        onSubmit(trimmedText, date ?? dueDate)
         dismiss()
     }
 
@@ -76,6 +77,11 @@ struct TaskSheet: View {
                 }
 
                 DueDateSection(dueDate: $dueDate)
+
+                QuickSaveSection(
+                    onQuickSave: { date in submit(date: date) },
+                    isDisabled: trimmedText.isEmpty
+                )
 
                 if isEditing {
                     Section {

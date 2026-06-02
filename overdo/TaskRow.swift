@@ -18,22 +18,22 @@ struct TaskRow: View {
     var showsDueDay: Bool = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(task.text)
                     .font(.body)
 
-                Text(task.relativeText(at: now))
-                    .font(.caption)
-                    .foregroundStyle(task.isOverdue(at: now) ? Color.red : Color.secondary)
+                Text(showsDueDay ? task.dueDayTimeText(at: now) : task.dueTimeText())
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
 
             Spacer(minLength: 0)
 
-            Text(showsDueDay ? task.dueDayTimeText(at: now) : task.dueTimeText())
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+            Text(task.relativeText(at: now))
+                .font(.subheadline)
+                .foregroundStyle(task.isOverdue(at: now) ? Color.red : Color.secondary)
         }
         .padding(.vertical, 4)
     }
