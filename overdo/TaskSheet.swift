@@ -68,12 +68,11 @@ struct TaskSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("What needs to be done?", text: $text)
+                    TextField("What needs to be done?", text: $text, axis: .vertical)
+                        .lineLimit(1...8)
                         .focused($isTextFieldFocused)
-                        .submitLabel(.done)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.sentences)
-                        .onSubmit { submit() }
                 }
 
                 DueDateSection(dueDate: $dueDate)
