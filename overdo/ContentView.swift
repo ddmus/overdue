@@ -42,6 +42,9 @@ struct ContentView: View {
     @State private var isSelecting = false
     @State private var selectedTaskIDs: Set<UUID> = []
 
+    // The most recent revertible action, or nil when nothing is undoable.
+    @State private var pendingUndo: UndoRecord?
+
     /// The currently selected tasks, resolved from their IDs.
     private var selectedTasks: [TodoItem] {
         tasks.filter { selectedTaskIDs.contains($0.id) }
@@ -68,15 +71,16 @@ struct ContentView: View {
                 }
             case .edit(let task):
                 TaskSheet(mode: .edit(task)) { text, dueDate, isTimeSensitive in
+                    registerUndo("Undo edit", for: [task])
                     task.text = text
                     task.dueDate = dueDate
                     task.isTimeSensitive = isTimeSensitive
                 } onComplete: {
-                    task.isCompleted = true
-                    TaskNotifications.cancel(taskID: task.id)
+                    markDone(task)
                 }
             case .bulkEdit(let bulkTasks):
                 BulkEditSheet(tasks: bulkTasks) { newDueDate in
+                    registerUndo("Undo reschedule", for: bulkTasks)
                     for task in bulkTasks {
                         task.dueDate = newDueDate
                     }
@@ -133,6 +137,16 @@ struct ContentView: View {
             .navigationTitle(isSelecting ? "\(selectedTaskIDs.count) Selected" : "")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if let undo = pendingUndo, !isSelecting {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            performUndo()
+                        } label: {
+                            Label("Undo", systemImage: "arrow.uturn.backward")
+                        }
+                        .accessibilityLabel(undo.label)
+                    }
+                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if isSelecting {
                         selectionToolbarButtons
@@ -283,8 +297,7 @@ struct ContentView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
-                        task.isDeleted = true
-                        TaskNotifications.cancel(taskID: task.id)
+                        delete(task)
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -318,13 +331,21 @@ struct ContentView: View {
             markDone(task)
         case .postpone15m, .postpone1h, .postpone1d, .at9, .at12, .at18, .at20:
             if let newDueDate = action.resolvedDueDate() {
+                registerUndo("Undo reschedule", for: [task])
                 task.dueDate = newDueDate
             }
         }
     }
 
     private func markDone(_ task: TodoItem) {
+        registerUndo("Undo complete", for: [task])
         task.isCompleted = true
+        TaskNotifications.cancel(taskID: task.id)
+    }
+
+    private func delete(_ task: TodoItem) {
+        registerUndo("Undo delete", for: [task])
+        task.isDeleted = true
         TaskNotifications.cancel(taskID: task.id)
     }
 
@@ -355,6 +376,55 @@ struct ContentView: View {
                 selectedTaskIDs.insert(task.id)
             }
         }
+    }
+
+    // MARK: - Undo
+
+    /// A single revertible action, captured just before a change is applied.
+    private struct UndoRecord: Identifiable {
+        let id = UUID()
+        let label: String
+        let revert: () -> Void
+    }
+
+    /// How long the Undo button stays available after a change.
+    private var undoWindow: Duration { .seconds(20) }
+
+    /// Snapshots the given tasks so the change about to happen can be reverted, and
+    /// arms the Undo button for `undoWindow`.
+    private func registerUndo(_ label: String, for tasks: [TodoItem]) {
+        let snapshots = tasks.map { task in
+            (task: task,
+             text: task.text,
+             dueDate: task.dueDate,
+             isCompleted: task.isCompleted,
+             isDeleted: task.isDeleted,
+             isTimeSensitive: task.isTimeSensitive)
+        }
+        let record = UndoRecord(label: label) {
+            for snapshot in snapshots {
+                snapshot.task.text = snapshot.text
+                snapshot.task.dueDate = snapshot.dueDate
+                snapshot.task.isCompleted = snapshot.isCompleted
+                snapshot.task.isDeleted = snapshot.isDeleted
+                snapshot.task.isTimeSensitive = snapshot.isTimeSensitive
+            }
+        }
+        withAnimation(toolbarAnimation) { pendingUndo = record }
+
+        // Auto-expire this record after the window (unless a newer one replaced it).
+        Task {
+            try? await Task.sleep(for: undoWindow)
+            if pendingUndo?.id == record.id {
+                withAnimation(toolbarAnimation) { pendingUndo = nil }
+            }
+        }
+    }
+
+    private func performUndo() {
+        guard let undo = pendingUndo else { return }
+        undo.revert()
+        withAnimation(toolbarAnimation) { pendingUndo = nil }
     }
 }
 
