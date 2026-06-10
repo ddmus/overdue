@@ -30,18 +30,25 @@ final class TodoItem {
     /// Defaulted on the property so SwiftData can lightweight-migrate existing stores.
     var isDeleted: Bool = false
 
+    /// `true` if the task is marked time sensitive — only these get the repeating
+    /// every-5-minutes reminders once overdue. Defaulted to `false`, so existing tasks
+    /// migrate to Off and ordinary tasks fire a single due-time reminder only.
+    var isTimeSensitive: Bool = false
+
     init(
         id: UUID = UUID(),
         text: String,
         dueDate: Date,
         isCompleted: Bool = false,
-        isDeleted: Bool = false
+        isDeleted: Bool = false,
+        isTimeSensitive: Bool = false
     ) {
         self.id = id
         self.text = text
         self.dueDate = dueDate
         self.isCompleted = isCompleted
         self.isDeleted = isDeleted
+        self.isTimeSensitive = isTimeSensitive
     }
 }
 

@@ -168,7 +168,13 @@ enum TaskNotifications {
             let elapsed = now.timeIntervalSince(task.dueDate)
             let firstSlot = elapsed <= 0 ? 0 : Int(elapsed / repeatInterval) + 1
 
-            for slot in firstSlot ..< (firstSlot + perTaskSeriesLength) {
+            // Time-sensitive tasks repeat every 5 minutes once overdue; ordinary tasks
+            // get only the single due-time reminder (slot 0).
+            let slotRange = task.isTimeSensitive
+                ? firstSlot ..< (firstSlot + perTaskSeriesLength)
+                : 0 ..< 1
+
+            for slot in slotRange {
                 let fireDate = task.dueDate.addingTimeInterval(repeatInterval * Double(slot))
                 guard fireDate > now else { continue }
 

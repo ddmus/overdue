@@ -18,8 +18,9 @@ struct TaskSheet: View {
     }
 
     let mode: Mode
-    /// Called with the entered text and chosen due date when the user adds or saves.
-    let onSubmit: (String, Date) -> Void
+    /// Called with the entered text, chosen due date, and time-sensitive flag when the
+    /// user adds or saves.
+    let onSubmit: (String, Date, Bool) -> Void
     /// Called when the user completes an existing task. Unused in `.create` mode.
     var onComplete: (() -> Void)?
 
@@ -27,11 +28,12 @@ struct TaskSheet: View {
 
     @State private var text: String
     @State private var dueDate: Date
+    @State private var isTimeSensitive: Bool
     @FocusState private var isTextFieldFocused: Bool
 
     init(
         mode: Mode,
-        onSubmit: @escaping (String, Date) -> Void,
+        onSubmit: @escaping (String, Date, Bool) -> Void,
         onComplete: (() -> Void)? = nil
     ) {
         self.mode = mode
@@ -42,9 +44,11 @@ struct TaskSheet: View {
         case .create:
             _text = State(initialValue: "")
             _dueDate = State(initialValue: .now.addingTimeInterval(3_600))
+            _isTimeSensitive = State(initialValue: false)
         case .edit(let task):
             _text = State(initialValue: task.text)
             _dueDate = State(initialValue: task.dueDate)
+            _isTimeSensitive = State(initialValue: task.isTimeSensitive)
         }
     }
 
@@ -61,7 +65,7 @@ struct TaskSheet: View {
     /// An optional `date` overrides the picked due date (used by Quick save).
     private func submit(date: Date? = nil) {
         guard !trimmedText.isEmpty else { return }
-        onSubmit(trimmedText, date ?? dueDate)
+        onSubmit(trimmedText, date ?? dueDate, isTimeSensitive)
         dismiss()
     }
 
@@ -74,6 +78,14 @@ struct TaskSheet: View {
                         .focused($isTextFieldFocused)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.sentences)
+                }
+
+                Section {
+                    Toggle(isOn: $isTimeSensitive) {
+                        Label("Time Sensitive", systemImage: "bell.badge.fill")
+                    }
+                } footer: {
+                    Text("Keep reminding me every 5 minutes while this task is overdue.")
                 }
 
                 DueDateSection(dueDate: $dueDate)
@@ -123,7 +135,7 @@ struct TaskSheet: View {
 #Preview("Create") {
     Color.clear
         .sheet(isPresented: .constant(true)) {
-            TaskSheet(mode: .create) { _, _ in }
+            TaskSheet(mode: .create) { _, _, _ in }
         }
 }
 
@@ -132,7 +144,7 @@ struct TaskSheet: View {
         .sheet(isPresented: .constant(true)) {
             TaskSheet(
                 mode: .edit(TodoItem(text: "Call the dentist", dueDate: .now)),
-                onSubmit: { _, _ in },
+                onSubmit: { _, _, _ in },
                 onComplete: {}
             )
         }

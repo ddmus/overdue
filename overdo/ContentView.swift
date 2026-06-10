@@ -59,13 +59,18 @@ struct ContentView: View {
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .create:
-                TaskSheet(mode: .create) { text, dueDate in
-                    modelContext.insert(TodoItem(text: text, dueDate: dueDate))
+                TaskSheet(mode: .create) { text, dueDate, isTimeSensitive in
+                    modelContext.insert(TodoItem(
+                        text: text,
+                        dueDate: dueDate,
+                        isTimeSensitive: isTimeSensitive
+                    ))
                 }
             case .edit(let task):
-                TaskSheet(mode: .edit(task)) { text, dueDate in
+                TaskSheet(mode: .edit(task)) { text, dueDate, isTimeSensitive in
                     task.text = text
                     task.dueDate = dueDate
+                    task.isTimeSensitive = isTimeSensitive
                 } onComplete: {
                     task.isCompleted = true
                     TaskNotifications.cancel(taskID: task.id)
@@ -105,7 +110,7 @@ struct ContentView: View {
     /// the trigger for rescheduling reminders.
     private var notificationSnapshot: [String] {
         tasks.map { task in
-            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)"
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isTimeSensitive)"
         }
     }
 
@@ -113,7 +118,7 @@ struct ContentView: View {
     /// the trigger for rewriting the backup file.
     private var backupSnapshot: [String] {
         allTasks.map { task in
-            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)"
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)|\(task.isTimeSensitive)"
         }
     }
 

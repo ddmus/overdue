@@ -20,8 +20,16 @@ struct TaskRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(task.text)
-                    .font(.body)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    if task.isTimeSensitive {
+                        Image(systemName: "bell.badge.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .accessibilityLabel("Time sensitive")
+                    }
+                    Text(task.text)
+                        .font(.body)
+                }
 
                 Text(showsDueDay ? task.dueDayTimeText(at: now) : task.dueTimeText())
                     .font(.subheadline)
