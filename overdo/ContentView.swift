@@ -28,9 +28,12 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
 
-    // Active (not completed) tasks, soonest due first. Completed tasks are filtered out.
-    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted }, sort: \TodoItem.dueDate)
+    // Active tasks shown in the UI: not completed and not deleted, soonest due first.
+    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted && !$0.isDeleted }, sort: \TodoItem.dueDate)
     private var tasks: [TodoItem]
+
+    // Every task, including completed and soft-deleted — the source for the backup file.
+    @Query private var allTasks: [TodoItem]
 
     @State private var activeSheet: ActiveSheet?
     @State private var searchText = ""
@@ -77,13 +80,18 @@ struct ContentView: View {
             }
         }
         .task {
-            // Schedule reminders on launch.
+            // Schedule reminders and refresh the backup on launch.
             TaskNotifications.sync(tasks: tasks)
+            TaskBackup.write(allTasks)
         }
         .onChange(of: notificationSnapshot) {
             // Any add / edit / complete / delete reschedules all reminders so the
             // badge counts baked into each notification stay correct.
             TaskNotifications.sync(tasks: tasks)
+        }
+        .onChange(of: backupSnapshot) {
+            // Mirror every change (including completes and soft-deletes) to the file.
+            TaskBackup.write(allTasks)
         }
         .onChange(of: scenePhase) { _, _ in
             // Catch tasks that crossed their due date while the app was away:
@@ -98,6 +106,14 @@ struct ContentView: View {
     private var notificationSnapshot: [String] {
         tasks.map { task in
             "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)"
+        }
+    }
+
+    /// Changes on any edit across *all* tasks (including completed and deleted) —
+    /// the trigger for rewriting the backup file.
+    private var backupSnapshot: [String] {
+        allTasks.map { task in
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)"
         }
     }
 
@@ -262,9 +278,8 @@ struct ContentView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
-                        let id = task.id
-                        modelContext.delete(task)
-                        TaskNotifications.cancel(taskID: id)
+                        task.isDeleted = true
+                        TaskNotifications.cancel(taskID: task.id)
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }

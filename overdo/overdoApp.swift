@@ -17,7 +17,11 @@ struct overdoApp: App {
 
     init() {
         do {
-            modelContainer = try ModelContainer(for: TodoItem.self)
+            // The app has an iCloud entitlement for the JSON backup file, which would
+            // otherwise make SwiftData auto-enable CloudKit sync for the store. We
+            // handle iCloud ourselves, so disable CloudKit for the model container.
+            let configuration = ModelConfiguration(cloudKitDatabase: .none)
+            modelContainer = try ModelContainer(for: TodoItem.self, configurations: configuration)
         } catch {
             fatalError("Failed to create the model container: \(error)")
         }

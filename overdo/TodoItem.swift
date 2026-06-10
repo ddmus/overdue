@@ -22,13 +22,26 @@ final class TodoItem {
     var dueDate: Date
 
     /// `true` once the task has been completed. Completed tasks are hidden from the UI.
-    var isCompleted: Bool
+    /// Defaulted on the property so SwiftData can lightweight-migrate existing stores.
+    var isCompleted: Bool = false
 
-    init(id: UUID = UUID(), text: String, dueDate: Date, isCompleted: Bool = false) {
+    /// `true` once the task has been deleted. Soft-deleted tasks are hidden from the UI
+    /// but kept in the store (and the backup) so nothing is ever truly lost.
+    /// Defaulted on the property so SwiftData can lightweight-migrate existing stores.
+    var isDeleted: Bool = false
+
+    init(
+        id: UUID = UUID(),
+        text: String,
+        dueDate: Date,
+        isCompleted: Bool = false,
+        isDeleted: Bool = false
+    ) {
         self.id = id
         self.text = text
         self.dueDate = dueDate
         self.isCompleted = isCompleted
+        self.isDeleted = isDeleted
     }
 }
 
