@@ -33,6 +33,7 @@ struct ContentView: View {
     private var tasks: [TodoItem]
 
     @State private var activeSheet: ActiveSheet?
+    @State private var searchText = ""
 
     // Multi-select state.
     @State private var isSelecting = false
@@ -44,21 +45,12 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            // Periodic timeline keeps the calculated relative-time labels live.
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                taskList(now: context.date)
+        TabView {
+            Tab("Tasks", systemImage: "list.bullet") {
+                tasksTab
             }
-            .navigationTitle(isSelecting ? "\(selectedTaskIDs.count) Selected" : "")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    if isSelecting {
-                        selectionToolbarButtons
-                    } else {
-                        defaultToolbarButtons
-                    }
-                }
+            Tab(role: .search) {
+                searchTab
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -109,6 +101,46 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Tabs
+
+    private var tasksTab: some View {
+        NavigationStack {
+            // Periodic timeline keeps the calculated relative-time labels live.
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                taskList(tasks, now: context.date)
+            }
+            .navigationTitle(isSelecting ? "\(selectedTaskIDs.count) Selected" : "")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    if isSelecting {
+                        selectionToolbarButtons
+                    } else {
+                        defaultToolbarButtons
+                    }
+                }
+            }
+        }
+    }
+
+    private var searchTab: some View {
+        NavigationStack {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                taskList(filteredTasks, now: context.date, searching: true)
+            }
+            .navigationTitle("Search")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .searchable(text: $searchText, prompt: "Search tasks")
+    }
+
+    /// Active tasks whose text contains the search string (all of them when empty).
+    private var filteredTasks: [TodoItem] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return tasks }
+        return tasks.filter { $0.text.localizedCaseInsensitiveContains(query) }
+    }
+
     // MARK: - Toolbar
 
     @ViewBuilder
@@ -150,19 +182,23 @@ struct ContentView: View {
     // MARK: - Task list
 
     @ViewBuilder
-    private func taskList(now: Date) -> some View {
-        let overdue = tasks.filter { $0.isOverdue(at: now) }
-        let upcoming = tasks.filter { !$0.isOverdue(at: now) }
+    private func taskList(_ source: [TodoItem], now: Date, searching: Bool = false) -> some View {
+        let overdue = source.filter { $0.isOverdue(at: now) }
+        let upcoming = source.filter { !$0.isOverdue(at: now) }
         let today = upcoming.filter { Calendar.current.isDate($0.dueDate, inSameDayAs: now) }
         let later = upcoming.filter { !Calendar.current.isDate($0.dueDate, inSameDayAs: now) }
 
         Group {
-            if tasks.isEmpty {
-                ContentUnavailableView(
-                    "No tasks",
-                    systemImage: "checkmark.circle",
-                    description: Text("Tap + to add your first task.")
-                )
+            if source.isEmpty {
+                if searching {
+                    ContentUnavailableView.search(text: searchText)
+                } else {
+                    ContentUnavailableView(
+                        "No tasks",
+                        systemImage: "checkmark.circle",
+                        description: Text("Tap + to add your first task.")
+                    )
+                }
             } else {
                 List {
                     if !overdue.isEmpty {
@@ -188,8 +224,10 @@ struct ContentView: View {
         }
         // When a task crosses its due date while the app is open, refresh the badge
         // and reschedule reminders so the overdue task starts its repeating reminder.
-        .onChange(of: overdue.count) {
-            Badge.set(overdue.count)
+        // Driven by the full list only — the filtered search list must not interfere.
+        .onChange(of: searching ? 0 : tasks.filter { $0.isOverdue(at: now) }.count) { _, newCount in
+            guard !searching else { return }
+            Badge.set(newCount)
             TaskNotifications.sync(tasks: tasks)
         }
     }
