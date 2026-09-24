@@ -394,7 +394,7 @@ struct ContentView: View {
         switch action {
         case .markDone:
             markDone(task)
-        case .postpone15m, .postpone1h, .postpone1d, .at9, .at12, .at18, .at20:
+        default:
             if let newDueDate = action.resolvedDueDate() {
                 registerUndo("Undo reschedule", for: [task])
                 task.dueDate = newDueDate

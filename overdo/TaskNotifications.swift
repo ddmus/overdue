@@ -35,7 +35,9 @@ enum TaskNotifications {
         case markDone = "MARK_DONE"
         case postpone15m = "POSTPONE_15M"
         case postpone1h = "POSTPONE_1H"
+        case postpone3h = "POSTPONE_3H"
         case postpone1d = "POSTPONE_1D"
+        case at7 = "AT_07_00"
         case at9 = "AT_09_00"
         case at12 = "AT_12_00"
         case at18 = "AT_18_00"
@@ -49,8 +51,8 @@ enum TaskNotifications {
         var group: Group {
             switch self {
             case .markDone: .complete
-            case .postpone15m, .postpone1h, .postpone1d: .postpone
-            case .at9, .at12, .at18, .at20: .schedule
+            case .postpone15m, .postpone1h, .postpone3h, .postpone1d: .postpone
+            case .at7, .at9, .at12, .at18, .at20: .schedule
             }
         }
 
@@ -59,7 +61,9 @@ enum TaskNotifications {
             case .markDone: "Mark done"
             case .postpone15m: "Postpone 15 min"
             case .postpone1h: "Postpone 1 hour"
+            case .postpone3h: "Postpone 3 hours"
             case .postpone1d: "Postpone 1 day"
+            case .at7: "7:00"
             case .at9: "9:00"
             case .at12: "12:00"
             case .at18: "18:00"
@@ -70,8 +74,8 @@ enum TaskNotifications {
         var iconName: String {
             switch self {
             case .markDone: "checkmark"
-            case .postpone15m, .postpone1h, .postpone1d: "clock"
-            case .at9, .at12, .at18, .at20: "alarm"
+            case .postpone15m, .postpone1h, .postpone3h, .postpone1d: "clock"
+            case .at7, .at9, .at12, .at18, .at20: "alarm"
             }
         }
 
@@ -84,8 +88,12 @@ enum TaskNotifications {
                 return now.addingTimeInterval(15 * 60)
             case .postpone1h:
                 return now.addingTimeInterval(60 * 60)
+            case .postpone3h:
+                return now.addingTimeInterval(3 * 60 * 60)
             case .postpone1d:
                 return now.addingTimeInterval(24 * 60 * 60)
+            case .at7:
+                return Self.nextOccurrence(ofHour: 7, from: now)
             case .at9:
                 return Self.nextOccurrence(ofHour: 9, from: now)
             case .at12:

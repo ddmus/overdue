@@ -59,7 +59,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         switch action {
         case .markDone:
             complete(taskID: taskID)
-        case .postpone15m, .postpone1h, .postpone1d, .at9, .at12, .at18, .at20:
+        default:
             if let newDueDate = action.resolvedDueDate() {
                 reschedule(taskID: taskID, to: newDueDate)
             }
