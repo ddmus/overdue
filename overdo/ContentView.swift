@@ -12,13 +12,13 @@ struct ContentView: View {
 
     /// Which task sheet, if any, is currently presented.
     private enum ActiveSheet: Identifiable {
-        case create
+        case create(isIdea: Bool)
         case edit(TodoItem)
         case bulkEdit([TodoItem])
 
         var id: String {
             switch self {
-            case .create: return "create"
+            case .create(let isIdea): return "create-\(isIdea)"
             case .edit(let task): return "edit-\(task.id.uuidString)"
             case .bulkEdit: return "bulkEdit"
             }
@@ -27,10 +27,15 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(NotificationRouter.self) private var notificationRouter
 
-    // Active tasks shown in the UI: not completed and not deleted, soonest due first.
-    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted && !$0.isDeleted }, sort: \TodoItem.dueDate)
+    // Scheduled tasks shown in the Tasks list: active, not an idea, soonest due first.
+    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted && !$0.isDeleted && !$0.isIdea }, sort: \TodoItem.dueDate)
     private var tasks: [TodoItem]
+
+    // Active ideas shown in the Ideas list: active and flagged as an idea.
+    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted && !$0.isDeleted && $0.isIdea }, sort: \TodoItem.dueDate)
+    private var ideas: [TodoItem]
 
     // Every task, including completed and soft-deleted — the source for the backup file.
     @Query private var allTasks: [TodoItem]
@@ -45,9 +50,9 @@ struct ContentView: View {
     // The most recent revertible action, or nil when nothing is undoable.
     @State private var pendingUndo: UndoRecord?
 
-    /// The currently selected tasks, resolved from their IDs.
+    /// The currently selected items, resolved from their IDs across tasks and ideas.
     private var selectedTasks: [TodoItem] {
-        tasks.filter { selectedTaskIDs.contains($0.id) }
+        (tasks + ideas).filter { selectedTaskIDs.contains($0.id) }
     }
 
     var body: some View {
@@ -55,34 +60,49 @@ struct ContentView: View {
             Tab("Tasks", systemImage: "list.bullet") {
                 tasksTab
             }
+            Tab("Ideas", systemImage: "lightbulb") {
+                ideasTab
+            }
             Tab(role: .search) {
                 searchTab
             }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
-            case .create:
-                TaskSheet(mode: .create) { text, dueDate, isTimeSensitive in
+            case .create(let isIdea):
+                TaskSheet(mode: .create(isIdea: isIdea)) { result in
                     modelContext.insert(TodoItem(
-                        text: text,
-                        dueDate: dueDate,
-                        isTimeSensitive: isTimeSensitive
+                        text: result.text,
+                        dueDate: result.dueDate,
+                        isTimeSensitive: result.isTimeSensitive,
+                        isIdea: result.isIdea
                     ))
                 }
             case .edit(let task):
-                TaskSheet(mode: .edit(task)) { text, dueDate, isTimeSensitive in
+                TaskSheet(mode: .edit(task)) { result in
                     registerUndo("Undo edit", for: [task])
-                    task.text = text
-                    task.dueDate = dueDate
-                    task.isTimeSensitive = isTimeSensitive
+                    task.text = result.text
+                    task.dueDate = result.dueDate
+                    task.isTimeSensitive = result.isTimeSensitive
+                    task.isIdea = result.isIdea
+                    // Becoming an idea drops any scheduled reminders.
+                    if result.isIdea { TaskNotifications.cancel(taskID: task.id) }
                 } onComplete: {
                     markDone(task)
                 }
             case .bulkEdit(let bulkTasks):
-                BulkEditSheet(tasks: bulkTasks) { newDueDate in
-                    registerUndo("Undo reschedule", for: bulkTasks)
+                BulkEditSheet(tasks: bulkTasks) { result in
+                    registerUndo("Undo bulk edit", for: bulkTasks)
                     for task in bulkTasks {
-                        task.dueDate = newDueDate
+                        switch result {
+                        case .setDueDate(let newDueDate):
+                            task.dueDate = newDueDate
+                            task.isIdea = false
+                        case .makeIdea:
+                            task.isIdea = true
+                            task.isTimeSensitive = false
+                            TaskNotifications.cancel(taskID: task.id)
+                        }
                     }
                     exitSelectionMode()
                 }
@@ -108,6 +128,15 @@ struct ContentView: View {
             Badge.set(tasks.filter { $0.isOverdue() }.count)
             TaskNotifications.sync(tasks: tasks)
         }
+        .onChange(of: notificationRouter.taskIDToOpen, initial: true) { _, taskID in
+            // A tapped reminder opens its task's detail (also on a cold launch).
+            guard let taskID else { return }
+            notificationRouter.taskIDToOpen = nil
+            if let task = allTasks.first(where: { $0.id == taskID && !$0.isCompleted && !$0.isDeleted }) {
+                exitSelectionMode()
+                activeSheet = .edit(task)
+            }
+        }
     }
 
     /// Changes whenever a task's identity, due date, text or membership changes —
@@ -122,7 +151,7 @@ struct ContentView: View {
     /// the trigger for rewriting the backup file.
     private var backupSnapshot: [String] {
         allTasks.map { task in
-            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)|\(task.isTimeSensitive)"
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)|\(task.isTimeSensitive)|\(task.isIdea)"
         }
     }
 
@@ -134,26 +163,33 @@ struct ContentView: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 taskList(tasks, now: context.date)
             }
-            .navigationTitle(isSelecting ? "\(selectedTaskIDs.count) Selected" : "")
+            .navigationTitle(isSelecting ? "\(selectedTaskIDs.count) Selected" : "Tasks")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if let undo = pendingUndo, !isSelecting {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            performUndo()
-                        } label: {
-                            Label("Undo", systemImage: "arrow.uturn.backward")
-                        }
-                        .accessibilityLabel(undo.label)
-                    }
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    if isSelecting {
-                        selectionToolbarButtons
-                    } else {
-                        defaultToolbarButtons
-                    }
-                }
+            .toolbar { listToolbar(isIdeaList: false) }
+        }
+    }
+
+    private var ideasTab: some View {
+        NavigationStack {
+            ideasList
+                .navigationTitle(isSelecting ? "\(selectedTaskIDs.count) Selected" : "Ideas")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { listToolbar(isIdeaList: true) }
+        }
+    }
+
+    /// Flat, dateless list for ideas (no Overdue/Today/Upcoming sections).
+    @ViewBuilder
+    private var ideasList: some View {
+        if ideas.isEmpty {
+            ContentUnavailableView(
+                "No ideas",
+                systemImage: "lightbulb",
+                description: Text("Tap + to capture an idea without a due date.")
+            )
+        } else {
+            List {
+                ForEach(ideas) { taskRow($0, now: .now) }
             }
         }
     }
@@ -178,21 +214,44 @@ struct ContentView: View {
 
     // MARK: - Toolbar
 
+    /// The shared toolbar for both the Tasks and Ideas lists. `isIdeaList` makes the
+    /// + button create an idea instead of a scheduled task.
+    @ToolbarContentBuilder
+    private func listToolbar(isIdeaList: Bool) -> some ToolbarContent {
+        if let undo = pendingUndo, !isSelecting {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    performUndo()
+                } label: {
+                    Label("Undo", systemImage: "arrow.uturn.backward")
+                }
+                .accessibilityLabel(undo.label)
+            }
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if isSelecting {
+                selectionToolbarButtons
+            } else {
+                defaultToolbarButtons(isIdeaList: isIdeaList)
+            }
+        }
+    }
+
     @ViewBuilder
-    private var defaultToolbarButtons: some View {
+    private func defaultToolbarButtons(isIdeaList: Bool) -> some View {
         Button {
             enterSelectionMode()
         } label: {
             Image(systemName: "checklist")
         }
-        .accessibilityLabel("Select tasks")
+        .accessibilityLabel("Select")
 
         Button {
-            activeSheet = .create
+            activeSheet = .create(isIdea: isIdeaList)
         } label: {
             Image(systemName: "plus")
         }
-        .accessibilityLabel("New task")
+        .accessibilityLabel(isIdeaList ? "New idea" : "New task")
     }
 
     @ViewBuilder
@@ -333,6 +392,8 @@ struct ContentView: View {
             if let newDueDate = action.resolvedDueDate() {
                 registerUndo("Undo reschedule", for: [task])
                 task.dueDate = newDueDate
+                // Giving an idea a due date promotes it to a scheduled task.
+                task.isIdea = false
             }
         }
     }
@@ -399,7 +460,8 @@ struct ContentView: View {
              dueDate: task.dueDate,
              isCompleted: task.isCompleted,
              isDeleted: task.isDeleted,
-             isTimeSensitive: task.isTimeSensitive)
+             isTimeSensitive: task.isTimeSensitive,
+             isIdea: task.isIdea)
         }
         let record = UndoRecord(label: label) {
             for snapshot in snapshots {
@@ -408,6 +470,7 @@ struct ContentView: View {
                 snapshot.task.isCompleted = snapshot.isCompleted
                 snapshot.task.isDeleted = snapshot.isDeleted
                 snapshot.task.isTimeSensitive = snapshot.isTimeSensitive
+                snapshot.task.isIdea = snapshot.isIdea
             }
         }
         withAnimation(toolbarAnimation) { pendingUndo = record }
@@ -431,4 +494,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .modelContainer(for: TodoItem.self, inMemory: true)
+        .environment(NotificationRouter())
 }

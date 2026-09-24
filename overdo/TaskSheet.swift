@@ -11,16 +11,23 @@ import SwiftUI
 struct TaskSheet: View {
 
     enum Mode {
-        /// Creating a brand new task. Due date defaults to one hour from now.
-        case create
+        /// Creating a brand new task. `isIdea` seeds the Idea toggle (on from the Ideas tab).
+        case create(isIdea: Bool)
         /// Editing an existing task.
         case edit(TodoItem)
     }
 
+    /// The values entered in the sheet, passed back on add/save.
+    struct Result {
+        var text: String
+        var dueDate: Date
+        var isTimeSensitive: Bool
+        var isIdea: Bool
+    }
+
     let mode: Mode
-    /// Called with the entered text, chosen due date, and time-sensitive flag when the
-    /// user adds or saves.
-    let onSubmit: (String, Date, Bool) -> Void
+    /// Called with the entered values when the user adds or saves.
+    let onSubmit: (Result) -> Void
     /// Called when the user completes an existing task. Unused in `.create` mode.
     var onComplete: (() -> Void)?
 
@@ -29,11 +36,12 @@ struct TaskSheet: View {
     @State private var text: String
     @State private var dueDate: Date
     @State private var isTimeSensitive: Bool
+    @State private var isIdea: Bool
     @FocusState private var isTextFieldFocused: Bool
 
     init(
         mode: Mode,
-        onSubmit: @escaping (String, Date, Bool) -> Void,
+        onSubmit: @escaping (Result) -> Void,
         onComplete: (() -> Void)? = nil
     ) {
         self.mode = mode
@@ -41,14 +49,16 @@ struct TaskSheet: View {
         self.onComplete = onComplete
 
         switch mode {
-        case .create:
+        case .create(let isIdea):
             _text = State(initialValue: "")
             _dueDate = State(initialValue: .now.addingTimeInterval(3_600))
             _isTimeSensitive = State(initialValue: false)
+            _isIdea = State(initialValue: isIdea)
         case .edit(let task):
             _text = State(initialValue: task.text)
             _dueDate = State(initialValue: task.dueDate)
             _isTimeSensitive = State(initialValue: task.isTimeSensitive)
+            _isIdea = State(initialValue: task.isIdea)
         }
     }
 
@@ -65,7 +75,13 @@ struct TaskSheet: View {
     /// An optional `date` overrides the picked due date (used by Quick save).
     private func submit(date: Date? = nil) {
         guard !trimmedText.isEmpty else { return }
-        onSubmit(trimmedText, date ?? dueDate, isTimeSensitive)
+        onSubmit(Result(
+            text: trimmedText,
+            dueDate: date ?? dueDate,
+            // An idea has no due date, so it can't be time sensitive.
+            isTimeSensitive: isIdea ? false : isTimeSensitive,
+            isIdea: isIdea
+        ))
         dismiss()
     }
 
@@ -84,16 +100,30 @@ struct TaskSheet: View {
                     Toggle(isOn: $isTimeSensitive) {
                         Label("Time Sensitive", systemImage: "bell.badge.fill")
                     }
+                    .disabled(isIdea)
+
+                    Toggle(isOn: $isIdea) {
+                        Label("Idea", systemImage: "lightbulb")
+                    }
                 } footer: {
-                    Text("Keep reminding me every 5 minutes while this task is overdue.")
+                    Text(isIdea
+                        ? "An idea has no due date and gets no reminders. Set a due date to schedule it."
+                        : "Time Sensitive keeps reminding you every 5 minutes while overdue.")
+                }
+                .onChange(of: isIdea) { _, newValue in
+                    // An idea can't be time sensitive — it has no due date.
+                    if newValue { isTimeSensitive = false }
                 }
 
-                DueDateSection(dueDate: $dueDate)
+                // Date controls only make sense for scheduled (non-idea) tasks.
+                if !isIdea {
+                    DueDateSection(dueDate: $dueDate)
 
-                QuickSaveSection(
-                    onQuickSave: { date in submit(date: date) },
-                    isDisabled: trimmedText.isEmpty
-                )
+                    QuickSaveSection(
+                        onQuickSave: { date in submit(date: date) },
+                        isDisabled: trimmedText.isEmpty
+                    )
+                }
 
                 if isEditing {
                     Section {
@@ -135,7 +165,7 @@ struct TaskSheet: View {
 #Preview("Create") {
     Color.clear
         .sheet(isPresented: .constant(true)) {
-            TaskSheet(mode: .create) { _, _, _ in }
+            TaskSheet(mode: .create(isIdea: false)) { _ in }
         }
 }
 
@@ -144,7 +174,7 @@ struct TaskSheet: View {
         .sheet(isPresented: .constant(true)) {
             TaskSheet(
                 mode: .edit(TodoItem(text: "Call the dentist", dueDate: .now)),
-                onSubmit: { _, _, _ in },
+                onSubmit: { _ in },
                 onComplete: {}
             )
         }

@@ -35,13 +35,19 @@ final class TodoItem {
     /// migrate to Off and ordinary tasks fire a single due-time reminder only.
     var isTimeSensitive: Bool = false
 
+    /// `true` if the task is an undated "Idea". Ideas have no meaningful due date (the
+    /// stored `dueDate` is ignored), get no notifications, and live in the Ideas list.
+    /// Setting a due date clears this flag and moves the task back to the Tasks list.
+    var isIdea: Bool = false
+
     init(
         id: UUID = UUID(),
         text: String,
         dueDate: Date,
         isCompleted: Bool = false,
         isDeleted: Bool = false,
-        isTimeSensitive: Bool = false
+        isTimeSensitive: Bool = false,
+        isIdea: Bool = false
     ) {
         self.id = id
         self.text = text
@@ -49,6 +55,7 @@ final class TodoItem {
         self.isCompleted = isCompleted
         self.isDeleted = isDeleted
         self.isTimeSensitive = isTimeSensitive
+        self.isIdea = isIdea
     }
 }
 

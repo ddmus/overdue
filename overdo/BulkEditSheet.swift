@@ -7,16 +7,24 @@
 
 import SwiftUI
 
-/// Taller bottom sheet for editing the due date/time of several tasks at once.
-/// The tasks are listed read-only; only the shared due date is editable.
+/// Taller bottom sheet for editing several tasks at once. The tasks are listed
+/// read-only; the user can either set a shared due date or turn them all into Ideas.
 struct BulkEditSheet: View {
 
+    /// The outcome the user chose for the selected tasks.
+    enum Result {
+        /// Apply this due date to every task (and clear their Idea flag).
+        case setDueDate(Date)
+        /// Turn every task into an undated Idea.
+        case makeIdea
+    }
+
     let tasks: [TodoItem]
-    /// Called with the new due date to apply to every task.
-    let onSave: (Date) -> Void
+    let onSave: (Result) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var dueDate: Date = .now.addingTimeInterval(3_600)
+    @State private var makeIdea = false
 
     var body: some View {
         NavigationStack {
@@ -30,9 +38,20 @@ struct BulkEditSheet: View {
                     Text("^[\(tasks.count) task](inflect: true)")
                 }
 
-                DueDateSection(dueDate: $dueDate)
+                Section {
+                    Toggle(isOn: $makeIdea) {
+                        Label("Idea", systemImage: "lightbulb")
+                    }
+                } footer: {
+                    Text("Turn these into undated ideas, removing their due date.")
+                }
+
+                // Date controls only apply when not converting to ideas.
+                if !makeIdea {
+                    DueDateSection(dueDate: $dueDate)
+                }
             }
-            .navigationTitle("Edit Due Date")
+            .navigationTitle(makeIdea ? "Make Ideas" : "Edit Due Date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -40,7 +59,7 @@ struct BulkEditSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        onSave(dueDate)
+                        onSave(makeIdea ? .makeIdea : .setDueDate(dueDate))
                         dismiss()
                     }
                     .disabled(tasks.isEmpty)

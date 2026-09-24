@@ -18,6 +18,29 @@ struct TaskRow: View {
     var showsDueDay: Bool = false
 
     var body: some View {
+        if task.isIdea {
+            ideaBody
+        } else {
+            scheduledBody
+        }
+    }
+
+    /// Dateless presentation for Ideas — just the text with a lightbulb.
+    private var ideaBody: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "lightbulb")
+                .font(.caption)
+                .foregroundStyle(.yellow)
+                .accessibilityLabel("Idea")
+            Text(task.text)
+                .font(.body)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// Full presentation for scheduled tasks — due time plus the live countdown.
+    private var scheduledBody: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {

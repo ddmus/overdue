@@ -5,17 +5,27 @@
 //  Created by tomas on 16.05.2026.
 //
 
+import Observation
 import SwiftData
 import UserNotifications
+
+/// Carries the task whose notification was tapped to the UI, which opens its detail.
+@Observable
+final class NotificationRouter {
+    /// Set when a reminder is tapped; the UI clears it once the task sheet is shown.
+    var taskIDToOpen: UUID?
+}
 
 /// Handles due reminders: shows them while the app is in the foreground and
 /// applies the postpone actions chosen from the notification's context menu.
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     private let modelContainer: ModelContainer
+    private let router: NotificationRouter
 
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, router: NotificationRouter) {
         self.modelContainer = modelContainer
+        self.router = router
         super.init()
     }
 
@@ -27,15 +37,22 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         [.banner, .sound, .list]
     }
 
-    /// Applies an action picked from the notification's context menu.
+    /// Opens the task when the notification itself is tapped, or applies an action
+    /// picked from its context menu.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        guard
-            let action = TaskNotifications.Action(rawValue: response.actionIdentifier),
-            let taskID = TaskNotifications.taskID(fromIdentifier: response.notification.request.identifier)
-        else {
+        guard let taskID = TaskNotifications.taskID(fromIdentifier: response.notification.request.identifier) else {
+            return
+        }
+
+        if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            router.taskIDToOpen = taskID
+            return
+        }
+
+        guard let action = TaskNotifications.Action(rawValue: response.actionIdentifier) else {
             return
         }
 

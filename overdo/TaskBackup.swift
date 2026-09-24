@@ -23,6 +23,7 @@ enum TaskBackup {
         let isCompleted: Bool
         let isDeleted: Bool
         let isTimeSensitive: Bool
+        let isIdea: Bool
     }
 
     static let fileName = "tasks-backup.json"
@@ -40,7 +41,8 @@ enum TaskBackup {
                 dueDate: $0.dueDate,
                 isCompleted: $0.isCompleted,
                 isDeleted: $0.isDeleted,
-                isTimeSensitive: $0.isTimeSensitive
+                isTimeSensitive: $0.isTimeSensitive,
+                isIdea: $0.isIdea
             )
         }
 
