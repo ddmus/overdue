@@ -16,7 +16,7 @@ import Foundation
 enum TaskBackup {
 
     /// A plain, Codable mirror of a task — decoupled from the SwiftData model.
-    struct Entry: Codable {
+    nonisolated struct Entry: Codable {
         let id: UUID
         let text: String
         let dueDate: Date
@@ -26,7 +26,7 @@ enum TaskBackup {
         let isIdea: Bool
     }
 
-    static let fileName = "tasks-backup.json"
+    nonisolated static let fileName = "tasks-backup.json"
 
     /// Overwrites the backup file with the current task list.
     ///
@@ -51,7 +51,7 @@ enum TaskBackup {
         }
     }
 
-    private static func persist(_ entries: [Entry]) {
+    nonisolated private static func persist(_ entries: [Entry]) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -72,13 +72,13 @@ enum TaskBackup {
     }
 
     /// The iCloud Drive location when available, otherwise the local Documents file.
-    private static func destinationURL() -> URL {
+    nonisolated private static func destinationURL() -> URL {
         iCloudFileURL() ?? URL.documentsDirectory.appending(path: fileName)
     }
 
     /// The backup file inside the app's iCloud Drive container, or `nil` when the
     /// user isn't signed into iCloud / the capability isn't provisioned.
-    private static func iCloudFileURL() -> URL? {
+    nonisolated private static func iCloudFileURL() -> URL? {
         let fileManager = FileManager.default
         guard let container = fileManager.url(forUbiquityContainerIdentifier: nil) else {
             return nil

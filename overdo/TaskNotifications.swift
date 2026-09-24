@@ -193,13 +193,15 @@ enum TaskNotifications {
         let scheduled = slots.sorted { $0.fireDate < $1.fireDate }.prefix(pendingLimit)
         let keepIDs = Set(scheduled.map(\.identifier))
 
-        center.getPendingNotificationRequests { requests in
-            let staleIDs = requests.map(\.identifier).filter { !keepIDs.contains($0) }
+        Task {
+            let staleIDs = await center.pendingNotificationRequests()
+                .map(\.identifier)
+                .filter { !keepIDs.contains($0) }
             if !staleIDs.isEmpty {
                 center.removePendingNotificationRequests(withIdentifiers: staleIDs)
             }
             for reminder in scheduled {
-                center.add(reminder.request())
+                try? await center.add(reminder.request())
             }
         }
 
@@ -207,10 +209,10 @@ enum TaskNotifications {
         // while it was overdue.
         let upcomingTaskIDs = active.filter { $0.dueDate > now }.map(\.id)
         if !upcomingTaskIDs.isEmpty {
-            center.getDeliveredNotifications { delivered in
-                let toRemove = delivered.map(\.request.identifier).filter { id in
-                    upcomingTaskIDs.contains { isIdentifier(id, forTaskID: $0) }
-                }
+            Task {
+                let toRemove = await center.deliveredNotifications()
+                    .map(\.request.identifier)
+                    .filter { id in upcomingTaskIDs.contains { isIdentifier(id, forTaskID: $0) } }
                 if !toRemove.isEmpty {
                     center.removeDeliveredNotifications(withIdentifiers: toRemove)
                 }
@@ -222,14 +224,18 @@ enum TaskNotifications {
     /// already-delivered notification. Use when a task is completed or deleted.
     static func cancel(taskID: UUID) {
         let center = UNUserNotificationCenter.current()
-        center.getPendingNotificationRequests { requests in
-            let ids = requests.map(\.identifier).filter { isIdentifier($0, forTaskID: taskID) }
+        Task {
+            let ids = await center.pendingNotificationRequests()
+                .map(\.identifier)
+                .filter { isIdentifier($0, forTaskID: taskID) }
             if !ids.isEmpty {
                 center.removePendingNotificationRequests(withIdentifiers: ids)
             }
         }
-        center.getDeliveredNotifications { delivered in
-            let ids = delivered.map(\.request.identifier).filter { isIdentifier($0, forTaskID: taskID) }
+        Task {
+            let ids = await center.deliveredNotifications()
+                .map(\.request.identifier)
+                .filter { isIdentifier($0, forTaskID: taskID) }
             if !ids.isEmpty {
                 center.removeDeliveredNotifications(withIdentifiers: ids)
             }
