@@ -85,8 +85,13 @@ struct ContentView: View {
                     task.dueDate = result.dueDate
                     task.isTimeSensitive = result.isTimeSensitive
                     task.isIdea = result.isIdea
-                    // Becoming an idea drops any scheduled reminders.
-                    if result.isIdea { TaskNotifications.cancel(taskID: task.id) }
+                    // Becoming an idea drops all reminders; any other edit clears the
+                    // delivered ones so Notification Center doesn't show stale details.
+                    if result.isIdea {
+                        TaskNotifications.cancel(taskID: task.id)
+                    } else {
+                        TaskNotifications.clearDelivered(taskID: task.id)
+                    }
                 } onComplete: {
                     markDone(task)
                 }
@@ -98,6 +103,7 @@ struct ContentView: View {
                         case .setDueDate(let newDueDate):
                             task.dueDate = newDueDate
                             task.isIdea = false
+                            TaskNotifications.clearDelivered(taskID: task.id)
                         case .makeIdea:
                             task.isIdea = true
                             task.isTimeSensitive = false
@@ -394,6 +400,7 @@ struct ContentView: View {
                 task.dueDate = newDueDate
                 // Giving an idea a due date promotes it to a scheduled task.
                 task.isIdea = false
+                TaskNotifications.clearDelivered(taskID: task.id)
             }
         }
     }

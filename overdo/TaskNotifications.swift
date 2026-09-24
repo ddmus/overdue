@@ -232,6 +232,14 @@ enum TaskNotifications {
                 center.removePendingNotificationRequests(withIdentifiers: ids)
             }
         }
+        clearDelivered(taskID: taskID)
+    }
+
+    /// Removes a task's already-delivered reminders from Notification Center, leaving
+    /// pending ones to `sync`. Use after the task is edited, so stale text or times
+    /// don't linger; if it is still overdue, `sync` schedules a fresh reminder.
+    static func clearDelivered(taskID: UUID) {
+        let center = UNUserNotificationCenter.current()
         Task {
             let ids = await center.deliveredNotifications()
                 .map(\.request.identifier)
