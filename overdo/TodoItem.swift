@@ -30,10 +30,10 @@ final class TodoItem {
     /// Defaulted on the property so SwiftData can lightweight-migrate existing stores.
     var isDeleted: Bool = false
 
-    /// `true` if the task is marked time sensitive — only these get the repeating
-    /// every-5-minutes reminders once overdue. Defaulted to `false`, so existing tasks
-    /// migrate to Off and ordinary tasks fire a single due-time reminder only.
-    var isTimeSensitive: Bool = false
+    /// `true` if the task is marked urgent — these ring a system alarm (AlarmKit) at
+    /// the due time, like Urgent reminders in Apple's Reminders app. Stored under its
+    /// former "time sensitive" name, so existing stores keep the flag.
+    @Attribute(originalName: "isTimeSensitive") var isUrgent: Bool = false
 
     /// `true` if the task is an undated "Idea". Ideas have no meaningful due date (the
     /// stored `dueDate` is ignored), get no notifications, and live in the Ideas list.
@@ -46,7 +46,7 @@ final class TodoItem {
         dueDate: Date,
         isCompleted: Bool = false,
         isDeleted: Bool = false,
-        isTimeSensitive: Bool = false,
+        isUrgent: Bool = false,
         isIdea: Bool = false
     ) {
         self.id = id
@@ -54,7 +54,7 @@ final class TodoItem {
         self.dueDate = dueDate
         self.isCompleted = isCompleted
         self.isDeleted = isDeleted
-        self.isTimeSensitive = isTimeSensitive
+        self.isUrgent = isUrgent
         self.isIdea = isIdea
     }
 }

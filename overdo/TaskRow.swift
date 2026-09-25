@@ -44,11 +44,11 @@ struct TaskRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    if task.isTimeSensitive {
-                        Image(systemName: "bell.badge.fill")
+                    if task.isUrgent {
+                        Image(systemName: "alarm.waves.left.and.right.fill")
                             .font(.caption)
                             .foregroundStyle(.orange)
-                            .accessibilityLabel("Time sensitive")
+                            .accessibilityLabel("Urgent")
                     }
                     Text(task.text)
                         .font(.body)

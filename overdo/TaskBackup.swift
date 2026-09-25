@@ -22,7 +22,7 @@ enum TaskBackup {
         let dueDate: Date
         let isCompleted: Bool
         let isDeleted: Bool
-        let isTimeSensitive: Bool
+        let isUrgent: Bool
         let isIdea: Bool
     }
 
@@ -41,7 +41,7 @@ enum TaskBackup {
                 dueDate: $0.dueDate,
                 isCompleted: $0.isCompleted,
                 isDeleted: $0.isDeleted,
-                isTimeSensitive: $0.isTimeSensitive,
+                isUrgent: $0.isUrgent,
                 isIdea: $0.isIdea
             )
         }

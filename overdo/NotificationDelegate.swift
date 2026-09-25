@@ -9,10 +9,13 @@ import Observation
 import SwiftData
 import UserNotifications
 
-/// Carries the task whose notification was tapped to the UI, which opens its detail.
+/// Carries a task to open to the UI, which shows its detail — set when a reminder
+/// notification is tapped or an urgent task's alarm is opened.
 @Observable
-final class NotificationRouter {
-    /// Set when a reminder is tapped; the UI clears it once the task sheet is shown.
+final class TaskRouter {
+    static let shared = TaskRouter()
+
+    /// Set when a task should be opened; the UI clears it once the task sheet is shown.
     var taskIDToOpen: UUID?
 }
 
@@ -21,9 +24,9 @@ final class NotificationRouter {
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     private let modelContainer: ModelContainer
-    private let router: NotificationRouter
+    private let router: TaskRouter
 
-    init(modelContainer: ModelContainer, router: NotificationRouter) {
+    init(modelContainer: ModelContainer, router: TaskRouter) {
         self.modelContainer = modelContainer
         self.router = router
         super.init()

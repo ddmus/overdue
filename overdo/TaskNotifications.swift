@@ -10,11 +10,9 @@ import UserNotifications
 
 /// Schedules the local reminders for tasks.
 ///
-/// Each task gets a *series* of one-shot reminders, pre-scheduled `repeatInterval`
-/// apart: one at the due date, then one every few minutes after. Because they are
-/// scheduled upfront, they keep firing even if the app is never opened. They use
-/// distinct identifiers (`<taskID>#<slot>`), so they appear as separate, stacked
-/// notifications rather than collapsing into one.
+/// Each task gets a single reminder at its due date. Urgent tasks additionally ring
+/// an alarm (see `TaskAlarms`), so their reminder is silent — it only keeps the task
+/// in Notification Center with its postpone actions and badge.
 enum TaskNotifications {
 
     /// Notification category that carries the postpone actions.
@@ -22,13 +20,6 @@ enum TaskNotifications {
 
     /// iOS keeps at most this many pending local notifications per app.
     private static let pendingLimit = 64
-
-    /// Spacing between the reminders in a task's series.
-    private static let repeatInterval: TimeInterval = 5 * 60
-
-    /// How many reminders are pre-scheduled per task on each sync — covers
-    /// `perTaskSeriesLength * repeatInterval` of nagging, refreshed whenever the app runs.
-    private static let perTaskSeriesLength = 24
 
     /// Actions offered in the notification and in-app context menus, in display order.
     enum Action: String, CaseIterable {
@@ -143,9 +134,10 @@ enum TaskNotifications {
 
     // MARK: - Identifiers
 
-    /// A reminder identifier looks like `<taskID>#<slot>`.
-    private static func makeIdentifier(taskID: UUID, slot: Int) -> String {
-        "\(taskID.uuidString)#\(slot)"
+    /// A reminder identifier looks like `<taskID>#0`. The `#<slot>` suffix is left over
+    /// from repeating reminders and kept so older delivered ones still map to their task.
+    private static func makeIdentifier(taskID: UUID) -> String {
+        "\(taskID.uuidString)#0"
     }
 
     private static func isIdentifier(_ identifier: String, forTaskID taskID: UUID) -> Bool {
@@ -160,45 +152,31 @@ enum TaskNotifications {
 
     // MARK: - Scheduling
 
-    /// Reschedules every reminder series from the current task set.
+    /// Reschedules every reminder (and every urgent task's alarm) from the current task set.
     ///
-    /// Each task contributes a series of reminders (due date, +5 min, +10 min, …).
     /// Reminders that have already fired stay in Notification Center; only future
     /// ones are (re)scheduled. The soonest reminders win the limited pending budget.
     static func sync(tasks: [TodoItem]) {
         let center = UNUserNotificationCenter.current()
         let now = Date.now
-        let active = tasks.filter { !$0.isCompleted }
+        let active = tasks.filter { !$0.isCompleted && !$0.isDeleted && !$0.isIdea }
 
-        // Build every future reminder slot across all tasks.
-        var slots: [PlannedReminder] = []
-        for task in active {
-            let elapsed = now.timeIntervalSince(task.dueDate)
-            let firstSlot = elapsed <= 0 ? 0 : Int(elapsed / repeatInterval) + 1
+        TaskAlarms.sync(tasks: active)
 
-            // Time-sensitive tasks repeat every 5 minutes once overdue; ordinary tasks
-            // get only the single due-time reminder (slot 0).
-            let slotRange = task.isTimeSensitive
-                ? firstSlot ..< (firstSlot + perTaskSeriesLength)
-                : 0 ..< 1
-
-            for slot in slotRange {
-                let fireDate = task.dueDate.addingTimeInterval(repeatInterval * Double(slot))
-                guard fireDate > now else { continue }
-
-                slots.append(PlannedReminder(
-                    identifier: makeIdentifier(taskID: task.id, slot: slot),
-                    fireDate: fireDate,
-                    // First reminder shows just the task text; repeats add an "Overdue" title.
-                    title: slot == 0 ? "" : "Overdue",
-                    body: task.text,
-                    badge: active.filter { $0.dueDate <= fireDate }.count
-                ))
-            }
+        let upcoming = active.filter { $0.dueDate > now }
+        let reminders = upcoming.map { task in
+            PlannedReminder(
+                identifier: makeIdentifier(taskID: task.id),
+                fireDate: task.dueDate,
+                body: task.text,
+                badge: active.filter { $0.dueDate <= task.dueDate }.count,
+                // An urgent task's alarm makes the sound.
+                isSilent: task.isUrgent
+            )
         }
 
         // Honour the global pending limit: keep the soonest reminders.
-        let scheduled = slots.sorted { $0.fireDate < $1.fireDate }.prefix(pendingLimit)
+        let scheduled = reminders.sorted { $0.fireDate < $1.fireDate }.prefix(pendingLimit)
         let keepIDs = Set(scheduled.map(\.identifier))
 
         Task {
@@ -215,7 +193,7 @@ enum TaskNotifications {
 
         // A task that is upcoming again should not keep reminders that already fired
         // while it was overdue.
-        let upcomingTaskIDs = active.filter { $0.dueDate > now }.map(\.id)
+        let upcomingTaskIDs = upcoming.map(\.id)
         if !upcomingTaskIDs.isEmpty {
             Task {
                 let toRemove = await center.deliveredNotifications()
@@ -228,9 +206,10 @@ enum TaskNotifications {
         }
     }
 
-    /// Fully clears a task's reminder series — every pending request and every
-    /// already-delivered notification. Use when a task is completed or deleted.
+    /// Fully clears a task's reminders — every pending request, every already-delivered
+    /// notification and its alarm. Use when a task is completed or deleted.
     static func cancel(taskID: UUID) {
+        TaskAlarms.cancel(taskID: taskID)
         let center = UNUserNotificationCenter.current()
         Task {
             let ids = await center.pendingNotificationRequests()
@@ -258,19 +237,18 @@ enum TaskNotifications {
         }
     }
 
-    /// One reminder in a task's series, ready to be turned into a request.
+    /// One task's reminder, ready to be turned into a request.
     private struct PlannedReminder {
         let identifier: String
         let fireDate: Date
-        let title: String
         let body: String
         let badge: Int
+        let isSilent: Bool
 
         func request() -> UNNotificationRequest {
             let content = UNMutableNotificationContent()
-            content.title = title
             content.body = body
-            content.sound = .default
+            content.sound = isSilent ? nil : .default
             content.categoryIdentifier = TaskNotifications.categoryIdentifier
             content.badge = NSNumber(value: badge)
 

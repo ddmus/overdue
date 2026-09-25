@@ -14,7 +14,7 @@ struct overdoApp: App {
 
     private let modelContainer: ModelContainer
     private let notificationDelegate: NotificationDelegate
-    private let notificationRouter = NotificationRouter()
+    private let taskRouter = TaskRouter.shared
 
     init() {
         do {
@@ -29,7 +29,7 @@ struct overdoApp: App {
 
         // The delegate needs the container so it can apply postpone actions, and the
         // router so a tapped reminder can open its task.
-        notificationDelegate = NotificationDelegate(modelContainer: modelContainer, router: notificationRouter)
+        notificationDelegate = NotificationDelegate(modelContainer: modelContainer, router: taskRouter)
         UNUserNotificationCenter.current().delegate = notificationDelegate
 
         // Requests alert + sound + badge permission and registers postpone actions.
@@ -40,7 +40,7 @@ struct overdoApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(notificationRouter)
+                .environment(taskRouter)
         }
         .modelContainer(modelContainer)
     }

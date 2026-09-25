@@ -21,7 +21,7 @@ struct TaskSheet: View {
     struct Result {
         var text: String
         var dueDate: Date
-        var isTimeSensitive: Bool
+        var isUrgent: Bool
         var isIdea: Bool
     }
 
@@ -35,7 +35,7 @@ struct TaskSheet: View {
 
     @State private var text: String
     @State private var dueDate: Date
-    @State private var isTimeSensitive: Bool
+    @State private var isUrgent: Bool
     @State private var isIdea: Bool
     @FocusState private var isTextFieldFocused: Bool
 
@@ -52,12 +52,12 @@ struct TaskSheet: View {
         case .create(let isIdea):
             _text = State(initialValue: "")
             _dueDate = State(initialValue: .now.addingTimeInterval(3_600))
-            _isTimeSensitive = State(initialValue: false)
+            _isUrgent = State(initialValue: false)
             _isIdea = State(initialValue: isIdea)
         case .edit(let task):
             _text = State(initialValue: task.text)
             _dueDate = State(initialValue: task.dueDate)
-            _isTimeSensitive = State(initialValue: task.isTimeSensitive)
+            _isUrgent = State(initialValue: task.isUrgent)
             _isIdea = State(initialValue: task.isIdea)
         }
     }
@@ -78,8 +78,8 @@ struct TaskSheet: View {
         onSubmit(Result(
             text: trimmedText,
             dueDate: date ?? dueDate,
-            // An idea has no due date, so it can't be time sensitive.
-            isTimeSensitive: isIdea ? false : isTimeSensitive,
+            // An idea has no due date, so it can't be urgent.
+            isUrgent: isIdea ? false : isUrgent,
             isIdea: isIdea
         ))
         dismiss()
@@ -97,10 +97,14 @@ struct TaskSheet: View {
                 }
 
                 Section {
-                    Toggle(isOn: $isTimeSensitive) {
-                        Label("Time Sensitive", systemImage: "bell.badge.fill")
+                    Toggle(isOn: $isUrgent) {
+                        Label("Urgent", systemImage: "alarm.waves.left.and.right.fill")
                     }
                     .disabled(isIdea)
+                    .onChange(of: isUrgent) { _, newValue in
+                        // Ask for alarm permission the first time a task is made urgent.
+                        if newValue { Task { await TaskAlarms.requestAuthorization() } }
+                    }
 
                     Toggle(isOn: $isIdea) {
                         Label("Idea", systemImage: "lightbulb")
@@ -108,11 +112,11 @@ struct TaskSheet: View {
                 } footer: {
                     Text(isIdea
                         ? "An idea has no due date and gets no reminders. Set a due date to schedule it."
-                        : "Time Sensitive keeps reminding you every 5 minutes while overdue.")
+                        : "Urgent rings an alarm at the due time, even in Silent mode or Focus.")
                 }
                 .onChange(of: isIdea) { _, newValue in
-                    // An idea can't be time sensitive — it has no due date.
-                    if newValue { isTimeSensitive = false }
+                    // An idea can't be urgent — it has no due date.
+                    if newValue { isUrgent = false }
                 }
 
                 // Date controls only make sense for scheduled (non-idea) tasks.

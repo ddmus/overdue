@@ -27,7 +27,7 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(NotificationRouter.self) private var notificationRouter
+    @Environment(TaskRouter.self) private var taskRouter
 
     // Scheduled tasks shown in the Tasks list: active, not an idea, soonest due first.
     @Query(filter: #Predicate<TodoItem> { !$0.isCompleted && !$0.isDeleted && !$0.isIdea }, sort: \TodoItem.dueDate)
@@ -74,7 +74,7 @@ struct ContentView: View {
                     modelContext.insert(TodoItem(
                         text: result.text,
                         dueDate: result.dueDate,
-                        isTimeSensitive: result.isTimeSensitive,
+                        isUrgent: result.isUrgent,
                         isIdea: result.isIdea
                     ))
                 }
@@ -83,7 +83,7 @@ struct ContentView: View {
                     registerUndo("Undo edit", for: [task])
                     task.text = result.text
                     task.dueDate = result.dueDate
-                    task.isTimeSensitive = result.isTimeSensitive
+                    task.isUrgent = result.isUrgent
                     task.isIdea = result.isIdea
                     // Becoming an idea drops all reminders; any other edit clears the
                     // delivered ones so Notification Center doesn't show stale details.
@@ -106,7 +106,7 @@ struct ContentView: View {
                             TaskNotifications.clearDelivered(taskID: task.id)
                         case .makeIdea:
                             task.isIdea = true
-                            task.isTimeSensitive = false
+                            task.isUrgent = false
                             TaskNotifications.cancel(taskID: task.id)
                         }
                     }
@@ -130,14 +130,14 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, _ in
             // Catch tasks that crossed their due date while the app was away:
-            // refresh the badge and start their repeating reminders.
+            // refresh the badge and the badge counts baked into pending reminders.
             Badge.set(tasks.filter { $0.isOverdue() }.count)
             TaskNotifications.sync(tasks: tasks)
         }
-        .onChange(of: notificationRouter.taskIDToOpen, initial: true) { _, taskID in
+        .onChange(of: taskRouter.taskIDToOpen, initial: true) { _, taskID in
             // A tapped reminder opens its task's detail (also on a cold launch).
             guard let taskID else { return }
-            notificationRouter.taskIDToOpen = nil
+            taskRouter.taskIDToOpen = nil
             if let task = allTasks.first(where: { $0.id == taskID && !$0.isCompleted && !$0.isDeleted }) {
                 exitSelectionMode()
                 activeSheet = .edit(task)
@@ -149,7 +149,7 @@ struct ContentView: View {
     /// the trigger for rescheduling reminders.
     private var notificationSnapshot: [String] {
         tasks.map { task in
-            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isTimeSensitive)"
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isUrgent)"
         }
     }
 
@@ -157,7 +157,7 @@ struct ContentView: View {
     /// the trigger for rewriting the backup file.
     private var backupSnapshot: [String] {
         allTasks.map { task in
-            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)|\(task.isTimeSensitive)|\(task.isIdea)"
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)|\(task.isUrgent)|\(task.isIdea)"
         }
     }
 
@@ -323,7 +323,7 @@ struct ContentView: View {
             }
         }
         // When a task crosses its due date while the app is open, refresh the badge
-        // and reschedule reminders so the overdue task starts its repeating reminder.
+        // and reschedule reminders so the badge counts baked into them stay correct.
         // Driven by the full list only — the filtered search list must not interfere.
         .onChange(of: searching ? 0 : tasks.filter { $0.isOverdue(at: now) }.count) { _, newCount in
             guard !searching else { return }
@@ -467,7 +467,7 @@ struct ContentView: View {
              dueDate: task.dueDate,
              isCompleted: task.isCompleted,
              isDeleted: task.isDeleted,
-             isTimeSensitive: task.isTimeSensitive,
+             isUrgent: task.isUrgent,
              isIdea: task.isIdea)
         }
         let record = UndoRecord(label: label) {
@@ -476,7 +476,7 @@ struct ContentView: View {
                 snapshot.task.dueDate = snapshot.dueDate
                 snapshot.task.isCompleted = snapshot.isCompleted
                 snapshot.task.isDeleted = snapshot.isDeleted
-                snapshot.task.isTimeSensitive = snapshot.isTimeSensitive
+                snapshot.task.isUrgent = snapshot.isUrgent
                 snapshot.task.isIdea = snapshot.isIdea
             }
         }
@@ -501,5 +501,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .modelContainer(for: TodoItem.self, inMemory: true)
-        .environment(NotificationRouter())
+        .environment(TaskRouter())
 }
