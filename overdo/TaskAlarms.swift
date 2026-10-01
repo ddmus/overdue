@@ -6,7 +6,6 @@
 //
 
 import AlarmKit
-import AppIntents
 import SwiftUI
 
 /// Rings a system alarm (AlarmKit) at the due time of every urgent task — like Urgent
@@ -14,8 +13,11 @@ import SwiftUI
 /// take over the screen until stopped.
 ///
 /// Each alarm uses its task's id, so a task has at most one. The alert offers Stop
-/// and Open; Open launches the app on the task's detail.
+/// and Snooze; Snooze rings the same alarm again `snoozeDuration` later.
 enum TaskAlarms {
+
+    /// How long Snooze silences a ringing alarm.
+    nonisolated private static let snoozeDuration: TimeInterval = 10 * 60
 
     /// What each scheduled alarm was built from, keyed by task id — lets `sync` skip
     /// alarms that are already up to date instead of rescheduling them every time.
@@ -32,7 +34,7 @@ enum TaskAlarms {
 
     /// Makes the scheduled alarms match the urgent tasks among `tasks` (expected to be
     /// the active, non-idea ones): adds or updates alarms for future urgent tasks and
-    /// cancels the rest. An alarm that is ringing right now is left alone.
+    /// cancels the rest. An alarm that is ringing or snoozed right now is left alone.
     static func sync(tasks: [TodoItem]) {
         let now = Date.now
         let planned = tasks
@@ -62,7 +64,9 @@ enum TaskAlarms {
         let plannedIDs = Set(planned.map(\.id))
         var signatures = storedSignatures
 
-        for alarm in existing where !plannedIDs.contains(alarm.id) && alarm.state != .alerting {
+        // Only alarms still waiting for their due time; a ringing or snoozed one belongs
+        // to a task that just became overdue and must keep going.
+        for alarm in existing where !plannedIDs.contains(alarm.id) && alarm.state == .scheduled {
             try? manager.cancel(id: alarm.id)
             signatures[alarm.id.uuidString] = nil
         }
@@ -105,24 +109,29 @@ enum TaskAlarms {
         }
 
         func configuration() -> AlarmManager.AlarmConfiguration<TaskAlarmMetadata> {
-            let openButton = AlarmButton(
-                text: "Open",
+            let snoozeButton = AlarmButton(
+                text: "Snooze",
                 textColor: .white,
-                systemImageName: "arrow.up.forward.app"
+                systemImageName: "zzz"
             )
+            // `.countdown` makes Snooze restart the alarm's post-alert countdown, after
+            // which it rings again.
             let alert = AlarmPresentation.Alert(
                 title: LocalizedStringResource(stringLiteral: title),
-                secondaryButton: openButton,
-                secondaryButtonBehavior: .custom
+                secondaryButton: snoozeButton,
+                secondaryButtonBehavior: .countdown
+            )
+            let countdown = AlarmPresentation.Countdown(
+                title: LocalizedStringResource(stringLiteral: title)
             )
             let attributes = AlarmAttributes<TaskAlarmMetadata>(
-                presentation: AlarmPresentation(alert: alert),
+                presentation: AlarmPresentation(alert: alert, countdown: countdown),
                 tintColor: .orange
             )
-            return .alarm(
+            return AlarmManager.AlarmConfiguration(
+                countdownDuration: Alarm.CountdownDuration(preAlert: nil, postAlert: snoozeDuration),
                 schedule: .fixed(fireDate),
-                attributes: attributes,
-                secondaryIntent: OpenTaskIntent(taskID: id)
+                attributes: attributes
             )
         }
     }
@@ -130,27 +139,3 @@ enum TaskAlarms {
 
 /// AlarmKit requires a metadata type; the alarms carry nothing beyond their id.
 nonisolated struct TaskAlarmMetadata: AlarmMetadata {}
-
-/// Run by an alarm's Open button: brings the app forward on the task's detail.
-struct OpenTaskIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Open Task"
-    static let isDiscoverable = false
-    static let supportedModes: IntentModes = .foreground
-
-    @Parameter(title: "Task ID")
-    var taskID: String
-
-    init() {}
-
-    init(taskID: UUID) {
-        self.taskID = taskID.uuidString
-    }
-
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        if let id = UUID(uuidString: taskID) {
-            TaskRouter.shared.taskIDToOpen = id
-        }
-        return .result()
-    }
-}

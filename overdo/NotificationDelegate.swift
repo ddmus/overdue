@@ -10,7 +10,7 @@ import SwiftData
 import UserNotifications
 
 /// Carries a task to open to the UI, which shows its detail — set when a reminder
-/// notification is tapped or an urgent task's alarm is opened.
+/// notification is tapped.
 @Observable
 final class TaskRouter {
     static let shared = TaskRouter()
