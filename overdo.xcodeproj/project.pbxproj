@@ -6,11 +6,51 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C3832739306F18D300BC62B8 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3832738306F18D300BC62B8 /* WidgetKit.framework */; };
+		C383273B306F18D300BC62B8 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C383273A306F18D300BC62B8 /* SwiftUI.framework */; };
+		C3832748306F18D400BC62B8 /* overdo-widgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C3832736306F18D300BC62B8 /* overdo-widgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C3832746306F18D400BC62B8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C3D835F32FB8C43400EA60DF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C3832735306F18D300BC62B8;
+			remoteInfo = "overdo-widgetsExtension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C3832749306F18D400BC62B8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C3832748306F18D400BC62B8 /* overdo-widgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		C3832736306F18D300BC62B8 /* overdo-widgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "overdo-widgetsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C3832738306F18D300BC62B8 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		C383273A306F18D300BC62B8 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		C3D835FB2FB8C43400EA60DF /* overdo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = overdo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C383274D306F18D400BC62B8 /* Exceptions for "overdo-widgets" folder in "overdo-widgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C3832735306F18D300BC62B8 /* overdo-widgetsExtension */;
+		};
 		C3D8AA012FB8C43400EA60DF /* Exceptions for "overdo" folder in "overdo" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -21,6 +61,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		C383273C306F18D300BC62B8 /* overdo-widgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C383274D306F18D400BC62B8 /* Exceptions for "overdo-widgets" folder in "overdo-widgetsExtension" target */,
+			);
+			path = "overdo-widgets";
+			sourceTree = "<group>";
+		};
 		C3D835FD2FB8C43400EA60DF /* overdo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -29,9 +77,23 @@
 			path = overdo;
 			sourceTree = "<group>";
 		};
+		C3D8AA022FB8C43400EA60DF /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		C3832733306F18D300BC62B8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C383273B306F18D300BC62B8 /* SwiftUI.framework in Frameworks */,
+				C3832739306F18D300BC62B8 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C3D835F82FB8C43400EA60DF /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -42,10 +104,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		C3832737306F18D300BC62B8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C3832738306F18D300BC62B8 /* WidgetKit.framework */,
+				C383273A306F18D300BC62B8 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		C3D835F22FB8C43400EA60DF = {
 			isa = PBXGroup;
 			children = (
 				C3D835FD2FB8C43400EA60DF /* overdo */,
+				C383273C306F18D300BC62B8 /* overdo-widgets */,
+				C3D8AA022FB8C43400EA60DF /* Shared */,
+				C3832737306F18D300BC62B8 /* Frameworks */,
 				C3D835FC2FB8C43400EA60DF /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				C3D835FB2FB8C43400EA60DF /* overdo.app */,
+				C3832736306F18D300BC62B8 /* overdo-widgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +136,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		C3832735306F18D300BC62B8 /* overdo-widgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C383274C306F18D400BC62B8 /* Build configuration list for PBXNativeTarget "overdo-widgetsExtension" */;
+			buildPhases = (
+				C3832732306F18D300BC62B8 /* Sources */,
+				C3832733306F18D300BC62B8 /* Frameworks */,
+				C3832734306F18D300BC62B8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C383273C306F18D300BC62B8 /* overdo-widgets */,
+				C3D8AA022FB8C43400EA60DF /* Shared */,
+			);
+			name = "overdo-widgetsExtension";
+			packageProductDependencies = (
+			);
+			productName = "overdo-widgetsExtension";
+			productReference = C3832736306F18D300BC62B8 /* overdo-widgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		C3D835FA2FB8C43400EA60DF /* overdo */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = C3D836062FB8C43500EA60DF /* Build configuration list for PBXNativeTarget "overdo" */;
@@ -68,13 +166,16 @@
 				C3D835F72FB8C43400EA60DF /* Sources */,
 				C3D835F82FB8C43400EA60DF /* Frameworks */,
 				C3D835F92FB8C43400EA60DF /* Resources */,
+				C3832749306F18D400BC62B8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C3832747306F18D400BC62B8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C3D835FD2FB8C43400EA60DF /* overdo */,
+				C3D8AA022FB8C43400EA60DF /* Shared */,
 			);
 			name = overdo;
 			packageProductDependencies = (
@@ -90,9 +191,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2650;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					C3832735306F18D300BC62B8 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					C3D835FA2FB8C43400EA60DF = {
 						CreatedOnToolsVersion = 26.5;
 					};
@@ -113,11 +217,19 @@
 			projectRoot = "";
 			targets = (
 				C3D835FA2FB8C43400EA60DF /* overdo */,
+				C3832735306F18D300BC62B8 /* overdo-widgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		C3832734306F18D300BC62B8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C3D835F92FB8C43400EA60DF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +240,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		C3832732306F18D300BC62B8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C3D835F72FB8C43400EA60DF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +256,77 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		C3832747306F18D400BC62B8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C3832735306F18D300BC62B8 /* overdo-widgetsExtension */;
+			targetProxy = C3832746306F18D400BC62B8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		C383274A306F18D400BC62B8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XQ7JZFRLZA;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "overdo-widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "overdo-widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.hatchery41.overdo.overdo-widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C383274B306F18D400BC62B8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XQ7JZFRLZA;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "overdo-widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "overdo-widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.hatchery41.overdo.overdo-widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		C3D836042FB8C43500EA60DF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -272,8 +461,8 @@
 				DEVELOPMENT_TEAM = XQ7JZFRLZA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Overdue;
 				INFOPLIST_FILE = overdo/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Overdue;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -307,8 +496,8 @@
 				DEVELOPMENT_TEAM = XQ7JZFRLZA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Overdue;
 				INFOPLIST_FILE = overdo/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Overdue;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -334,6 +523,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		C383274C306F18D400BC62B8 /* Build configuration list for PBXNativeTarget "overdo-widgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C383274A306F18D400BC62B8 /* Debug */,
+				C383274B306F18D400BC62B8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		C3D835F62FB8C43400EA60DF /* Build configuration list for PBXProject "overdo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

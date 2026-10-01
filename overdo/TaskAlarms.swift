@@ -136,6 +136,3 @@ enum TaskAlarms {
         }
     }
 }
-
-/// AlarmKit requires a metadata type; the alarms carry nothing beyond their id.
-nonisolated struct TaskAlarmMetadata: AlarmMetadata {}
