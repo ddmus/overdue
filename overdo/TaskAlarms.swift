@@ -5,6 +5,7 @@
 //  Created by tomas on 24.09.2026.
 //
 
+import ActivityKit
 import AlarmKit
 import SwiftUI
 
@@ -18,6 +19,10 @@ enum TaskAlarms {
 
     /// How long Snooze silences a ringing alarm.
     nonisolated private static let snoozeDuration: TimeInterval = 10 * 60
+
+    /// A soft, quiet "ping" bundled with the app, used instead of the harsh default
+    /// alarm tone. It loops while the alarm rings: one ping every 8 seconds.
+    nonisolated private static let sound = AlertConfiguration.AlertSound.named("subtle-chime.caf")
 
     /// What each scheduled alarm was built from, keyed by task id — lets `sync` skip
     /// alarms that are already up to date instead of rescheduling them every time.
@@ -105,7 +110,8 @@ enum TaskAlarms {
         let title: String
 
         var signature: String {
-            "\(fireDate.timeIntervalSinceReferenceDate)|\(title)"
+            // Includes the sound, so alarms scheduled with an older one get rescheduled.
+            "\(fireDate.timeIntervalSinceReferenceDate)|\(title)|subtle-chime"
         }
 
         func configuration() -> AlarmManager.AlarmConfiguration<TaskAlarmMetadata> {
@@ -131,7 +137,8 @@ enum TaskAlarms {
             return AlarmManager.AlarmConfiguration(
                 countdownDuration: Alarm.CountdownDuration(preAlert: nil, postAlert: snoozeDuration),
                 schedule: .fixed(fireDate),
-                attributes: attributes
+                attributes: attributes,
+                sound: TaskAlarms.sound
             )
         }
     }
