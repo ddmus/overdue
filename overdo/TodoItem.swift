@@ -10,6 +10,9 @@ import SwiftData
 
 /// A single task, persisted with SwiftData.
 /// Named `TodoItem` to avoid colliding with Swift Concurrency's `Task`.
+///
+/// Properties added after `id`, `text` and `dueDate` have default values so SwiftData can
+/// add them to existing stores; give any new property a default too.
 @Model
 final class TodoItem {
 
@@ -22,18 +25,18 @@ final class TodoItem {
     var dueDate: Date
 
     /// `true` once the task has been completed. Completed tasks are hidden from the UI.
-    /// Defaulted on the property so SwiftData can lightweight-migrate existing stores.
     var isCompleted: Bool = false
 
     /// `true` once the task has been deleted. Soft-deleted tasks are hidden from the UI
     /// but kept in the store (and the backup) so nothing is ever truly lost.
-    /// Defaulted on the property so SwiftData can lightweight-migrate existing stores.
     var isDeleted: Bool = false
 
     /// `true` if the task is marked urgent — these ring a system alarm (AlarmKit) at
-    /// the due time, like Urgent reminders in Apple's Reminders app. Stored under its
-    /// former "time sensitive" name, so existing stores keep the flag.
-    @Attribute(originalName: "isTimeSensitive") var isUrgent: Bool = false
+    /// the due time, like Urgent reminders in Apple's Reminders app.
+    var isUrgent: Bool = false
+
+    /// How an urgent task's alarm sounds, stored as `AlarmSound.rawValue`. Silent by default.
+    var alarmSoundRawValue: String = AlarmSound.silent.rawValue
 
     /// `true` if the task is an undated "Idea". Ideas have no meaningful due date (the
     /// stored `dueDate` is ignored), get no notifications, and live in the Ideas list.
@@ -47,6 +50,7 @@ final class TodoItem {
         isCompleted: Bool = false,
         isDeleted: Bool = false,
         isUrgent: Bool = false,
+        alarmSound: AlarmSound = .silent,
         isIdea: Bool = false
     ) {
         self.id = id
@@ -55,11 +59,18 @@ final class TodoItem {
         self.isCompleted = isCompleted
         self.isDeleted = isDeleted
         self.isUrgent = isUrgent
+        self.alarmSoundRawValue = alarmSound.rawValue
         self.isIdea = isIdea
     }
 }
 
 extension TodoItem {
+
+    /// How this task's alarm sounds when it is urgent.
+    var alarmSound: AlarmSound {
+        get { AlarmSound(rawValue: alarmSoundRawValue) ?? .silent }
+        set { alarmSoundRawValue = newValue.rawValue }
+    }
 
     /// `true` when the due date is in the past.
     func isOverdue(at reference: Date = .now) -> Bool {

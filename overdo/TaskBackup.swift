@@ -23,6 +23,7 @@ enum TaskBackup {
         let isCompleted: Bool
         let isDeleted: Bool
         let isUrgent: Bool
+        let alarmSound: String
         let isIdea: Bool
     }
 
@@ -42,6 +43,7 @@ enum TaskBackup {
                 isCompleted: $0.isCompleted,
                 isDeleted: $0.isDeleted,
                 isUrgent: $0.isUrgent,
+                alarmSound: $0.alarmSoundRawValue,
                 isIdea: $0.isIdea
             )
         }

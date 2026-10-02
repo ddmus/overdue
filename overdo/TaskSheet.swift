@@ -22,6 +22,7 @@ struct TaskSheet: View {
         var text: String
         var dueDate: Date
         var isUrgent: Bool
+        var alarmSound: AlarmSound
         var isIdea: Bool
     }
 
@@ -36,6 +37,7 @@ struct TaskSheet: View {
     @State private var text: String
     @State private var dueDate: Date
     @State private var isUrgent: Bool
+    @State private var alarmSound: AlarmSound
     @State private var isIdea: Bool
     @FocusState private var isTextFieldFocused: Bool
 
@@ -53,11 +55,13 @@ struct TaskSheet: View {
             _text = State(initialValue: "")
             _dueDate = State(initialValue: .now.addingTimeInterval(3_600))
             _isUrgent = State(initialValue: false)
+            _alarmSound = State(initialValue: .silent)
             _isIdea = State(initialValue: isIdea)
         case .edit(let task):
             _text = State(initialValue: task.text)
             _dueDate = State(initialValue: task.dueDate)
             _isUrgent = State(initialValue: task.isUrgent)
+            _alarmSound = State(initialValue: task.alarmSound)
             _isIdea = State(initialValue: task.isIdea)
         }
     }
@@ -80,6 +84,7 @@ struct TaskSheet: View {
             dueDate: date ?? dueDate,
             // An idea has no due date, so it can't be urgent.
             isUrgent: isIdea ? false : isUrgent,
+            alarmSound: alarmSound,
             isIdea: isIdea
         ))
         dismiss()
@@ -106,14 +111,29 @@ struct TaskSheet: View {
                         if newValue { Task { await TaskAlarms.requestAuthorization() } }
                     }
 
+                    // Shown only for urgent tasks: how the alarm sounds.
+                    if isUrgent && !isIdea {
+                        Picker(selection: $alarmSound) {
+                            ForEach(AlarmSound.allCases) { sound in
+                                Label(sound.title, systemImage: sound.iconName).tag(sound)
+                            }
+                        } label: {
+                            Label("Alarm Sound", systemImage: alarmSound.iconName)
+                        }
+                        .pickerStyle(.menu)
+                    }
+
                     Toggle(isOn: $isIdea) {
                         Label("Idea", systemImage: "lightbulb")
                     }
                 } footer: {
                     Text(isIdea
                         ? "An idea has no due date and gets no reminders. Set a due date to schedule it."
-                        : "Urgent rings an alarm at the due time, even in Silent mode or Focus.")
+                        : isUrgent
+                            ? alarmSound.summary
+                            : "Urgent shows an alarm at the due time, even in Silent mode or Focus.")
                 }
+                .animation(.default, value: isUrgent)
                 .onChange(of: isIdea) { _, newValue in
                     // An idea can't be urgent — it has no due date.
                     if newValue { isUrgent = false }

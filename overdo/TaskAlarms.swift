@@ -13,20 +13,18 @@ import SwiftUI
 /// reminders in Apple's Reminders app. Alarms break through Silent mode and Focus and
 /// take over the screen until stopped.
 ///
-/// Each alarm uses its task's id, so a task has at most one. The alert offers Stop
-/// and Snooze; Snooze rings the same alarm again `snoozeDuration` later.
+/// Every alarm gets a fresh id; `records` maps each task to its current alarm. Any change
+/// to a task ends its alarm — even one that is ringing or snoozed — and, if the task is
+/// still urgent and upcoming, schedules a new one. Reusing an id right after cancelling
+/// it is unreliable, which is why ids are never reused. The alert offers Stop and
+/// Snooze; Snooze rings the same alarm again `snoozeDuration` later.
 enum TaskAlarms {
 
     /// How long Snooze silences a ringing alarm.
     nonisolated private static let snoozeDuration: TimeInterval = 10 * 60
 
-    /// A soft, quiet "ping" bundled with the app, used instead of the harsh default
-    /// alarm tone. It loops while the alarm rings: one ping every 8 seconds.
-    nonisolated private static let sound = AlertConfiguration.AlertSound.named("subtle-chime.caf")
-
-    /// What each scheduled alarm was built from, keyed by task id — lets `sync` skip
-    /// alarms that are already up to date instead of rescheduling them every time.
-    private static let signaturesKey = "TaskAlarms.signatures"
+    /// Where `records` is persisted.
+    private static let recordsKey = "TaskAlarms.records"
 
     /// The previous sync; each sync waits for it so cancels and schedules don't interleave.
     private static var lastSync: Task<Void, Never>?
@@ -37,82 +35,106 @@ enum TaskAlarms {
         _ = try? await AlarmManager.shared.requestAuthorization()
     }
 
-    /// Makes the scheduled alarms match the urgent tasks among `tasks` (expected to be
-    /// the active, non-idea ones): adds or updates alarms for future urgent tasks and
-    /// cancels the rest. An alarm that is ringing or snoozed right now is left alone.
+    /// Makes the alarms match `tasks` (expected to be the active, non-idea ones). A task
+    /// that hasn't changed keeps its alarm as is, so one that just became overdue keeps
+    /// ringing or snoozing. Alarms of tasks not in `tasks` are cancelled.
     static func sync(tasks: [TodoItem]) {
         let now = Date.now
-        let planned = tasks
-            .filter { $0.isUrgent && $0.dueDate > now }
-            .map { PlannedAlarm(id: $0.id, fireDate: $0.dueDate, title: $0.text) }
+        let snapshots = tasks.map { task in
+            TaskSnapshot(
+                taskID: task.id,
+                isUrgent: task.isUrgent,
+                isUpcoming: task.dueDate > now,
+                alarm: PlannedAlarm(fireDate: task.dueDate, title: task.text, sound: task.alarmSound)
+            )
+        }
 
         let previous = lastSync
         lastSync = Task {
             await previous?.value
-            await apply(planned)
+            await apply(snapshots)
         }
     }
 
-    /// Cancels a task's alarm, including one that is ringing right now.
+    /// Cancels a task's alarm, including one that is ringing or snoozed right now.
     static func cancel(taskID: UUID) {
-        try? AlarmManager.shared.cancel(id: taskID)
-        var signatures = storedSignatures
-        signatures[taskID.uuidString] = nil
-        storedSignatures = signatures
+        var records = storedRecords
+        if let record = records.removeValue(forKey: taskID) {
+            try? AlarmManager.shared.cancel(id: record.alarmID)
+            storedRecords = records
+        }
     }
 
-    private static func apply(_ planned: [PlannedAlarm]) async {
+    private static func apply(_ snapshots: [TaskSnapshot]) async {
         let manager = AlarmManager.shared
         guard manager.authorizationState == .authorized else { return }
 
-        let existing = (try? manager.alarms) ?? []
-        let plannedIDs = Set(planned.map(\.id))
-        var signatures = storedSignatures
+        let liveAlarmIDs = Set(((try? manager.alarms) ?? []).map(\.id))
+        let records = storedRecords
+        var keptRecords: [UUID: Record] = [:]
 
-        // Only alarms still waiting for their due time; a ringing or snoozed one belongs
-        // to a task that just became overdue and must keep going.
-        for alarm in existing where !plannedIDs.contains(alarm.id) && alarm.state == .scheduled {
-            try? manager.cancel(id: alarm.id)
-            signatures[alarm.id.uuidString] = nil
-        }
-
-        let existingIDs = Set(existing.map(\.id))
-        for alarm in planned {
-            let key = alarm.id.uuidString
-            if existingIDs.contains(alarm.id) {
-                if signatures[key] == alarm.signature { continue }
-                try? manager.cancel(id: alarm.id)
+        for task in snapshots {
+            let signature = task.signature
+            if let record = records[task.taskID], liveAlarmIDs.contains(record.alarmID) {
+                if record.signature == signature {
+                    keptRecords[task.taskID] = record
+                    continue
+                }
+                // The task changed: end its alarm whatever state it is in.
+                try? manager.cancel(id: record.alarmID)
             }
-            do {
-                _ = try await manager.schedule(id: alarm.id, configuration: alarm.configuration())
-                signatures[key] = alarm.signature
-            } catch {
-                signatures[key] = nil
+            guard task.isUrgent && task.isUpcoming else { continue }
+
+            let alarmID = UUID()
+            if (try? await manager.schedule(id: alarmID, configuration: task.alarm.configuration())) != nil {
+                keptRecords[task.taskID] = Record(alarmID: alarmID, signature: signature)
             }
         }
 
-        // Forget signatures of alarms that no longer exist (fired or cancelled).
-        let liveIDs = existingIDs.union(plannedIDs)
-        storedSignatures = signatures.filter { key, _ in
-            UUID(uuidString: key).map(liveIDs.contains) ?? false
+        // Alarms of completed, deleted or idea tasks, and any other strays.
+        let keptAlarmIDs = Set(keptRecords.values.map(\.alarmID))
+        for alarmID in liveAlarmIDs where !keptAlarmIDs.contains(alarmID) {
+            try? manager.cancel(id: alarmID)
+        }
+
+        storedRecords = keptRecords
+    }
+
+    /// Each task's current alarm, keyed by task id.
+    private static var storedRecords: [UUID: Record] {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: recordsKey) else { return [:] }
+            return (try? JSONDecoder().decode([UUID: Record].self, from: data)) ?? [:]
+        }
+        set {
+            UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: recordsKey)
         }
     }
 
-    private static var storedSignatures: [String: String] {
-        get { UserDefaults.standard.dictionary(forKey: signaturesKey) as? [String: String] ?? [:] }
-        set { UserDefaults.standard.set(newValue, forKey: signaturesKey) }
+    /// A task's alarm and what it was built from — a different signature means the task
+    /// changed since the alarm was scheduled.
+    nonisolated private struct Record: Codable {
+        let alarmID: UUID
+        let signature: String
+    }
+
+    /// The alarm-relevant state of one task, captured on the main actor.
+    nonisolated private struct TaskSnapshot {
+        let taskID: UUID
+        let isUrgent: Bool
+        let isUpcoming: Bool
+        let alarm: PlannedAlarm
+
+        var signature: String {
+            "\(isUrgent)|\(alarm.fireDate.timeIntervalSinceReferenceDate)|\(alarm.title)|\(alarm.sound.rawValue)"
+        }
     }
 
     /// One urgent task's alarm, ready to be turned into an AlarmKit configuration.
     nonisolated private struct PlannedAlarm {
-        let id: UUID
         let fireDate: Date
         let title: String
-
-        var signature: String {
-            // Includes the sound, so alarms scheduled with an older one get rescheduled.
-            "\(fireDate.timeIntervalSinceReferenceDate)|\(title)|subtle-chime"
-        }
+        let sound: AlarmSound
 
         func configuration() -> AlarmManager.AlarmConfiguration<TaskAlarmMetadata> {
             let snoozeButton = AlarmButton(
@@ -138,8 +160,56 @@ enum TaskAlarms {
                 countdownDuration: Alarm.CountdownDuration(preAlert: nil, postAlert: snoozeDuration),
                 schedule: .fixed(fireDate),
                 attributes: attributes,
-                sound: TaskAlarms.sound
+                sound: sound.alertSound
             )
+        }
+    }
+}
+
+/// How an urgent task's alarm sounds. Every option still takes over the screen, shows
+/// the Live Activity and reaches a paired Apple Watch.
+nonisolated enum AlarmSound: String, CaseIterable, Identifiable {
+    /// No sound at all — the alert, any vibration and the watch do the work.
+    case silent
+    /// A soft chime bundled with the app: one quiet ping every 8 seconds.
+    case gentle
+    /// The standard iOS alarm tone.
+    case loud
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .silent: "Silent"
+        case .gentle: "Gentle"
+        case .loud: "Loud"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .silent: "speaker.slash"
+        case .gentle: "speaker.wave.1"
+        case .loud: "speaker.wave.3"
+        }
+    }
+
+    /// Explains the option in the task sheet.
+    var summary: String {
+        switch self {
+        case .silent: "Urgent shows an alarm at the due time with no sound — on screen, in the Live Activity and on Apple Watch."
+        case .gentle: "Urgent rings an alarm at the due time with a soft chime every few seconds."
+        case .loud: "Urgent rings the standard iOS alarm at the due time, even in Silent mode or Focus."
+        }
+    }
+
+    /// The sound file the alarm loops; `silent.caf` and `subtle-chime.caf` are generated
+    /// by `scripts/make-alarm-sounds.py`.
+    var alertSound: AlertConfiguration.AlertSound {
+        switch self {
+        case .silent: .named("silent.caf")
+        case .gentle: .named("subtle-chime.caf")
+        case .loud: .default
         }
     }
 }

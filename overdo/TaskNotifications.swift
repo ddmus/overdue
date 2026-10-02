@@ -134,20 +134,19 @@ enum TaskNotifications {
 
     // MARK: - Identifiers
 
-    /// A reminder identifier looks like `<taskID>#0`. The `#<slot>` suffix is left over
-    /// from repeating reminders and kept so older delivered ones still map to their task.
+    /// A task has a single reminder, identified by the task's id.
     private static func makeIdentifier(taskID: UUID) -> String {
-        "\(taskID.uuidString)#0"
+        taskID.uuidString
     }
 
     private static func isIdentifier(_ identifier: String, forTaskID taskID: UUID) -> Bool {
-        identifier.hasPrefix("\(taskID.uuidString)#")
+        identifier == makeIdentifier(taskID: taskID)
     }
 
     /// Extracts the task id from a reminder identifier — used to map a tapped
     /// notification back to its task.
     static func taskID(fromIdentifier identifier: String) -> UUID? {
-        UUID(uuidString: identifier.components(separatedBy: "#").first ?? "")
+        UUID(uuidString: identifier)
     }
 
     // MARK: - Scheduling

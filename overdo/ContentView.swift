@@ -75,6 +75,7 @@ struct ContentView: View {
                         text: result.text,
                         dueDate: result.dueDate,
                         isUrgent: result.isUrgent,
+                        alarmSound: result.alarmSound,
                         isIdea: result.isIdea
                     ))
                 }
@@ -84,6 +85,7 @@ struct ContentView: View {
                     task.text = result.text
                     task.dueDate = result.dueDate
                     task.isUrgent = result.isUrgent
+                    task.alarmSound = result.alarmSound
                     task.isIdea = result.isIdea
                     // Becoming an idea drops all reminders; any other edit clears the
                     // delivered ones so Notification Center doesn't show stale details.
@@ -149,7 +151,7 @@ struct ContentView: View {
     /// the trigger for rescheduling reminders.
     private var notificationSnapshot: [String] {
         tasks.map { task in
-            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isUrgent)"
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isUrgent)|\(task.alarmSoundRawValue)"
         }
     }
 
@@ -157,7 +159,7 @@ struct ContentView: View {
     /// the trigger for rewriting the backup file.
     private var backupSnapshot: [String] {
         allTasks.map { task in
-            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)|\(task.isUrgent)|\(task.isIdea)"
+            "\(task.id.uuidString)|\(task.dueDate.timeIntervalSinceReferenceDate)|\(task.text)|\(task.isCompleted)|\(task.isDeleted)|\(task.isUrgent)|\(task.alarmSoundRawValue)|\(task.isIdea)"
         }
     }
 
@@ -468,6 +470,7 @@ struct ContentView: View {
              isCompleted: task.isCompleted,
              isDeleted: task.isDeleted,
              isUrgent: task.isUrgent,
+             alarmSound: task.alarmSound,
              isIdea: task.isIdea)
         }
         let record = UndoRecord(label: label) {
@@ -477,6 +480,7 @@ struct ContentView: View {
                 snapshot.task.isCompleted = snapshot.isCompleted
                 snapshot.task.isDeleted = snapshot.isDeleted
                 snapshot.task.isUrgent = snapshot.isUrgent
+                snapshot.task.alarmSound = snapshot.alarmSound
                 snapshot.task.isIdea = snapshot.isIdea
             }
         }
